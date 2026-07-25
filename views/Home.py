@@ -134,10 +134,10 @@ def render_home():
     # TARJETAS DE KPIS CONSOLIDADOS
     # ---------------------------------------------------------
     kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-    kpi1.metric("Total Hallazgos Auditados", f"{total_inconsistencias:,}")
-    kpi2.metric("Saldo en Contra Recuperable", f"$ {saldo_tarifas:,.0f}")
-    kpi3.metric("Regional de Mayor Atención", str(top_regional_global))
-    kpi4.metric("Almacén Más Reincidente", str(top_almacen_global))
+    kpi1.metric("Hallazgos Auditados", f"{total_inconsistencias:,}")
+    kpi2.metric("Saldo Recuperado", f"$ {saldo_tarifas:,.0f}")
+    kpi3.metric("Regional Crítica", str(top_regional_global))
+    kpi4.metric("Almacén Reincidente", str(top_almacen_global))
 
     st.markdown("<br>", unsafe_allow_html=True)
 
