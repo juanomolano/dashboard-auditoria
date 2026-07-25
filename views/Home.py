@@ -2,32 +2,38 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# Importación de las funciones de carga de datos creadas para los 8 módulos
-from views.Obsequios import load_data_obsequios
-from views.Anulaciones import load_data_anulaciones
-from views.Documentos import load_data_documentos
-from views.Tarifas import load_data_tarifas
-from views.AperturasCierres import load_data_aperturas
-from views.ConciliacionTarjetas import load_data_conciliacion
-from views.ConciliacionLinkPago import load_data_link_pago
-from views.ConciliacionAddi import load_data_addi
-
-# Paleta Corporativa Ejecutiva
-COLOR_PRIMARY = "#1E3A8A"      # Azul marino profundo
-COLOR_SECONDARY = "#2563EB"    # Azul corporativo
-COLOR_DANGER = "#DC2626"       # Rojo corporativo financiero
-COLOR_ACCENT = "#D97706"       # Ámbar/Naranja sobrio
-COLOR_NEUTRAL_DARK = "#1F2937" # Gris oscuro
-COLOR_BG_CARD = "#F9FAFB"      # Fondo claro
-
 def render_home():
+    # 🎨 ESTILOS CSS PARA REDUCIR TAMAÑOS Y EVITAR QUE SE CORTEN LOS TEXTOS
+    st.markdown(
+        """
+        <style>
+            /* Reducir tamaño del título principal */
+            h1 {
+                font-size: 1.8rem !important;
+                padding-bottom: 0px !important;
+            }
+            /* Reducir tamaño del texto de las métricas (valores) */
+            [data-testid="stMetricValue"] {
+                font-size: 1.25rem !important;
+                white-space: normal !important;
+                word-wrap: break-word !important;
+            }
+            /* Reducir tamaño de las etiquetas de las métricas (títulos arriba) */
+            [data-testid="stMetricLabel"] {
+                font-size: 0.85rem !important;
+            }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
     st.title("🏠 Tablero Consolidado General de Auditoría")
     
     st.markdown(
-        f"""
-        <div style="background-color: {COLOR_BG_CARD}; padding: 18px; border-radius: 8px; border-left: 5px solid {COLOR_PRIMARY}; margin-bottom: 25px;">
-            <p style="margin: 0; font-size: 15px; color: {COLOR_NEUTRAL_DARK};">
-                <strong>📊 Centro de Control de Auditoría Interna:</strong> Vista consolidada en tiempo real de los 8 frentes de control operativo y financiero. Monitoreo unificado de reincidencias por Regional y Puntos de Venta.
+        """
+        <div style="background-color: #F9FAFB; padding: 12px 18px; border-radius: 8px; border-left: 4px solid #1E3A8A; margin-bottom: 15px;">
+            <p style="margin: 0; font-size: 13px; color: #1F2937;">
+                📊 <strong>Centro de Control de Auditoría Interna:</strong> Vista consolidada en tiempo real de los 8 frentes de control operativo y financiero. Monitoreo unificado de reincidencias por Regional y Puntos de Venta.
             </p>
         </div>
         """,
