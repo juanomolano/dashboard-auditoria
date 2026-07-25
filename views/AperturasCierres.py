@@ -174,22 +174,25 @@ def render_informe_05():
             )
             top_tiendas["Etiqueta"] = top_tiendas["CODIGO"].astype(str) + " - " + top_tiendas["TIENDA"]
             
-            # Margen dinámico para el eje X
+            # Rango dinámico para que la última bolita tenga espacio de sobra
             max_val = top_tiendas["Cantidad"].max() if not top_tiendas.empty else 10
             
             fig_dot = px.scatter(
                 top_tiendas,
                 x="Cantidad",
                 y="Etiqueta",
-                text="Cantidad",
-                size="Cantidad",
+                text="Cantidad",  # El número que se muestra
                 color_discrete_sequence=[COLOR_PRIMARY]
             )
+            
+            # 🛠️ NÚMERO DENTRO DE LA BOLA EN BLANCO Y TAMAÑO FIJO SÚPER LIMPIO
             fig_dot.update_traces(
-                marker=dict(size=15),
-                textposition="middle right"
+                marker=dict(size=26, color=COLOR_PRIMARY), # Tamaño fijo uniforme para la bola
+                textposition="middle center",             # Centra el número DENTRO de la bolita
+                textfont=dict(color="white", size=11, family="Arial Black") # Texto blanco visible
             )
             
+            # Líneas punteadas de soporte
             for _, row in top_tiendas.iterrows():
                 fig_dot.add_shape(
                     type="line",
@@ -201,16 +204,16 @@ def render_informe_05():
             fig_dot.update_layout(
                 xaxis_title="Cantidad de Eventos",
                 yaxis_title="",
-                xaxis=dict(range=[0, max_val * 1.2]), # 🛠️ Da espacio para que el número al lado de la bola no tape nada
-                margin=dict(l=0, r=50, t=20, b=20),
-                height=350, # 🛠️ Tamaño un poco más compacto
+                xaxis=dict(range=[0, max_val * 1.15]), # Le da un 15% de margen a la derecha
+                margin=dict(l=0, r=40, t=20, b=20),
+                height=370,
                 paper_bgcolor="rgba(0,0,0,0)",
                 plot_bgcolor="rgba(0,0,0,0)"
             )
             st.plotly_chart(fig_dot, use_container_width=True)
         else:
             st.info("Sin datos para generar la gráfica.")
-
+            
     with col_chart2:
         st.markdown("##### 🗺️ Distribución de Eventos por Regional")
         if "REGIONAL" in df_filtered.columns and not df_filtered.empty:
