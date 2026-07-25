@@ -44,7 +44,6 @@ def render_informe_02():
                 padding-bottom: 0px !important;
                 margin-bottom: 10px !important;
             }
-            /* Permite salto de línea en las etiquetas de métricas sin poner puntos suspensivos (...) */
             [data-testid="stMetricLabel"] {
                 font-size: 0.8rem !important;
                 white-space: normal !important;
@@ -53,13 +52,11 @@ def render_informe_02():
                 text-overflow: clip !important;
                 line-height: 1.2 !important;
             }
-            /* Permite que valores largos (ej: descripciones de motivos) quepan completos */
             [data-testid="stMetricValue"] {
                 font-size: 1.05rem !important;
                 white-space: normal !important;
                 word-wrap: break-word !important;
             }
-            /* Caja contenedora para las tarjetas de KPIs */
             div[data-testid="stMetric"] {
                 background-color: #F8FAFC;
                 padding: 10px 12px;
@@ -136,16 +133,10 @@ def render_informe_02():
     st.markdown("---")
 
     # ---------------------------------------------------------
-    # TARJETAS DE KPIS GLOBALES
+    # TARJETAS DE KPIS GLOBALES (SIN LA TARJETA DE MOTIVO)
     # ---------------------------------------------------------
     total_anulaciones = len(df_filtered)
     total_almacenes = df_filtered["CODALMACEN"].nunique() if "CODALMACEN" in df_filtered.columns else 0
-    
-    top_motivo = (
-        df_filtered["DESCRIPCION"].value_counts().index[0] 
-        if "DESCRIPCION" in df_filtered.columns and not df_filtered.empty 
-        else "N/A"
-    )
     
     top_regional = (
         df_filtered["REGIONAL"].value_counts().index[0] 
@@ -153,11 +144,17 @@ def render_informe_02():
         else "N/A"
     )
 
+    top_almacen = (
+        df_filtered["NOMBRE_ALMACEN"].value_counts().index[0] 
+        if "NOMBRE_ALMACEN" in df_filtered.columns and not df_filtered.empty 
+        else "N/A"
+    )
+
     kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-    kpi1.metric("Total Anulaciones Registradas", f"{total_anulaciones:,}")
-    kpi2.metric("Almacenes con Anulaciones", f"{total_almacenes:,}")
+    kpi1.metric("Total Anulaciones", f"{total_anulaciones:,}")
+    kpi2.metric("Almacenes Afectados", f"{total_almacenes:,}")
     kpi3.metric("Regional Crítica", str(top_regional))
-    kpi4.metric("Motivo Más Frecuente", str(top_motivo))
+    kpi4.metric("Almacén Reincidente", str(top_almacen))
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -205,10 +202,8 @@ def render_informe_02():
             df_regional = df_filtered["REGIONAL"].value_counts().reset_index()
             df_regional.columns = ["REGIONAL", "Cantidad"]
             
-            # Calcular porcentaje para cada regional
             total_casos = df_regional["Cantidad"].sum()
             df_regional["Porcentaje"] = (df_regional["Cantidad"] / total_casos * 100).round(1)
-            # Etiqueta combinada: "REGIONAL (XX.X%)"
             df_regional["Etiqueta_Pct"] = df_regional["REGIONAL"] + " (" + df_regional["Porcentaje"].astype(str) + "%)"
             
             fig_radial = px.bar_polar(
@@ -234,11 +229,10 @@ def render_informe_02():
             st.info("Sin datos para generar la gráfica.")
 
     # ---------------------------------------------------------
-    # TENDENCIA TEMPORAL MENSUAL (AGRUPADO ESTRICTAMENTE POR MES)
+    # TENDENCIA TEMPORAL MENSUAL
     # ---------------------------------------------------------
     st.markdown("##### 📈 Comportamiento Mensual de Anulaciones")
     if "AÑO_MES" in df_filtered.columns and not df_filtered.empty:
-        # Agrupar y convertir el período a texto
         df_trend = (
             df_filtered.groupby(df_filtered["AÑO_MES"].astype(str))
             .size()
@@ -255,7 +249,7 @@ def render_informe_02():
             color_discrete_sequence=[COLOR_SECONDARY]
         )
         fig_area.update_traces(textposition="top center")
-        fig_area.update_xaxes(type="category")  # Forzar a mostrar cada mes como categoría fija
+        fig_area.update_xaxes(type="category")
         fig_area.update_layout(
             xaxis_title="Mes de Facturación",
             yaxis_title="Nº de Anulaciones",
