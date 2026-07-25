@@ -158,7 +158,7 @@ def render_informe_05():
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ---------------------------------------------------------
-    # VISUALIZACIONES (DISPERSIÓN Y DONA DE PARTICIPACIÓN)
+    # VISUALIZACIONES (DISPERSIÓN Y DONA MULTICOLOR)
     # ---------------------------------------------------------
     col_chart1, col_chart2 = st.columns([1.1, 0.9])
 
@@ -174,6 +174,9 @@ def render_informe_05():
             )
             top_tiendas["Etiqueta"] = top_tiendas["CODIGO"].astype(str) + " - " + top_tiendas["TIENDA"]
             
+            # Margen dinámico para el eje X
+            max_val = top_tiendas["Cantidad"].max() if not top_tiendas.empty else 10
+            
             fig_dot = px.scatter(
                 top_tiendas,
                 x="Cantidad",
@@ -183,7 +186,7 @@ def render_informe_05():
                 color_discrete_sequence=[COLOR_PRIMARY]
             )
             fig_dot.update_traces(
-                marker=dict(size=18),
+                marker=dict(size=15),
                 textposition="middle right"
             )
             
@@ -198,8 +201,9 @@ def render_informe_05():
             fig_dot.update_layout(
                 xaxis_title="Cantidad de Eventos",
                 yaxis_title="",
-                margin=dict(l=0, r=40, t=20, b=20),
-                height=380,
+                xaxis=dict(range=[0, max_val * 1.2]), # 🛠️ Da espacio para que el número al lado de la bola no tape nada
+                margin=dict(l=0, r=50, t=20, b=20),
+                height=350, # 🛠️ Tamaño un poco más compacto
                 paper_bgcolor="rgba(0,0,0,0)",
                 plot_bgcolor="rgba(0,0,0,0)"
             )
@@ -213,21 +217,31 @@ def render_informe_05():
             df_regional = df_filtered["REGIONAL"].value_counts().reset_index()
             df_regional.columns = ["REGIONAL", "Cantidad"]
             
+            # 🎨 Gráfico de Dona Mediana-Grande Multicolor con Leyenda Lateral
             fig_donut = px.pie(
                 df_regional,
                 names="REGIONAL",
                 values="Cantidad",
-                hole=0.5,
-                color_discrete_sequence=px.colors.sequential.Teal_r
+                hole=0.48,
+                color_discrete_sequence=px.colors.qualitative.Bold
             )
             fig_donut.update_traces(
-                textinfo="percent+label",
+                textinfo="percent",
+                textposition="inside",
                 marker=dict(line=dict(color="#FFFFFF", width=2))
             )
             fig_donut.update_layout(
-                showlegend=False,
-                margin=dict(l=20, r=20, t=20, b=20),
-                height=380,
+                showlegend=True,
+                legend=dict(
+                    orientation="v",
+                    yanchor="middle",
+                    y=0.5,
+                    xanchor="left",
+                    x=1.02,
+                    font=dict(size=11, color=COLOR_NEUTRAL_DARK)
+                ),
+                margin=dict(l=10, r=10, t=10, b=10),
+                height=370, # 🛠️ Tamaño Mediano-Grande perfecto
                 paper_bgcolor="rgba(0,0,0,0)"
             )
             st.plotly_chart(fig_donut, use_container_width=True)
