@@ -2,23 +2,25 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
+# 1. IMPORTAR LAS FUNCIONES DE CARGA DE DATOS DE LOS OTROS MÓDULOS
+from views.Obsequios import load_data_obsequios
+# (Si usas otras funciones en Home, impórtalas también aquí, por ejemplo:)
+# from views.Anulaciones import load_data_anulaciones 
+
 def render_home():
-    # 🎨 ESTILOS CSS PARA REDUCIR TAMAÑOS Y EVITAR QUE SE CORTEN LOS TEXTOS
+    # Estilos CSS para compactar títulos y métricas
     st.markdown(
         """
         <style>
-            /* Reducir tamaño del título principal */
             h1 {
                 font-size: 1.8rem !important;
                 padding-bottom: 0px !important;
             }
-            /* Reducir tamaño del texto de las métricas (valores) */
             [data-testid="stMetricValue"] {
-                font-size: 1.25rem !important;
+                font-size: 1.2rem !important;
                 white-space: normal !important;
                 word-wrap: break-word !important;
             }
-            /* Reducir tamaño de las etiquetas de las métricas (títulos arriba) */
             [data-testid="stMetricLabel"] {
                 font-size: 0.85rem !important;
             }
@@ -33,12 +35,13 @@ def render_home():
         """
         <div style="background-color: #F9FAFB; padding: 12px 18px; border-radius: 8px; border-left: 4px solid #1E3A8A; margin-bottom: 15px;">
             <p style="margin: 0; font-size: 13px; color: #1F2937;">
-                📊 <strong>Centro de Control de Auditoría Interna:</strong> Vista consolidada en tiempo real de los 8 frentes de control operativo y financiero. Monitoreo unificado de reincidencias por Regional y Puntos de Venta.
+                📊 <strong>Centro de Control de Auditoría Interna:</strong> Vista consolidada en tiempo real de los 8 frentes de control operativo y financiero.
             </p>
         </div>
         """,
         unsafe_allow_html=True
     )
+
 
     # ---------------------------------------------------------
     # CARGA Y CONSOLIDACIÓN DE DATOS MULTI-MÓDULO
