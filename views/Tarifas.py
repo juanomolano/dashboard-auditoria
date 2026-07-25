@@ -32,7 +32,6 @@ def load_data_tarifas():
             
         # Limpieza y conversión numérica del SALDO EN CONTRA
         if "SALDO EN CONTRA" in df.columns:
-            # Convertir a texto primero para limpiar símbolos $ o comas
             s_clean = df["SALDO EN CONTRA"].astype(str).str.replace("$", "", regex=False)
             s_clean = s_clean.str.replace(".", "", regex=False).str.replace(",", ".", regex=False).str.strip()
             df["SALDO_NUMERICO"] = pd.to_numeric(s_clean, errors="coerce").fillna(0)
@@ -45,6 +44,43 @@ def load_data_tarifas():
         return pd.DataFrame()
 
 def render_informe_04():
+    # 🎨 ESTILOS CSS PARA EVITAR TEXTOS CORTADOS Y PROPORCIONAR METRICAS
+    st.markdown(
+        """
+        <style>
+            h1 {
+                font-size: 1.8rem !important;
+                padding-bottom: 0px !important;
+                margin-bottom: 10px !important;
+            }
+            /* Permite salto de línea en las etiquetas de métricas sin poner puntos suspensivos (...) */
+            [data-testid="stMetricLabel"] {
+                font-size: 0.8rem !important;
+                white-space: normal !important;
+                word-wrap: break-word !important;
+                overflow: visible !important;
+                text-overflow: clip !important;
+                line-height: 1.2 !important;
+            }
+            /* Permite que valores largos (ej: nombres de tarifa T900...) quepan completos */
+            [data-testid="stMetricValue"] {
+                font-size: 1.05rem !important;
+                white-space: normal !important;
+                word-wrap: break-word !important;
+            }
+            /* Caja contenedora para las tarjetas de KPIs */
+            div[data-testid="stMetric"] {
+                background-color: #F8FAFC;
+                padding: 10px 12px;
+                border-radius: 8px;
+                border: 1px solid #E2E8F0;
+                min-height: 90px;
+            }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
     # ---------------------------------------------------------
     # ENCABEZADO Y TEXTOS DE CONTEXTO
     # ---------------------------------------------------------
@@ -185,7 +221,6 @@ def render_informe_04():
                 .reset_index()
             )
             
-            # Scatter / Bubble Chart (Relación Casos vs Impacto Económico)
             fig_bubble = px.scatter(
                 df_bubble,
                 x="Casos",
@@ -257,7 +292,6 @@ def render_informe_04():
     if "FECHA_MOSTRAR" in df_tabla.columns:
         df_tabla["FECHA"] = df_tabla["FECHA_MOSTRAR"]
         
-    # Formatear la columna monetaria para la vista tabular
     df_tabla["SALDO_FORMATO"] = df_tabla["SALDO_NUMERICO"].apply(lambda x: f"$ {x:,.0f}")
     
     cols_display = [col for col in ["REGIONAL", "COD", "ALMACEN", "FECHA", "Factura", "TARIFA", "VENDEDOR", "SALDO_FORMATO"] if col in df_tabla.columns]
