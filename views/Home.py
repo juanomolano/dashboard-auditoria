@@ -31,25 +31,26 @@ from views.ConciliacionAddi import load_data_addi
 
 
 # ---------------------------------------------------------
-# CARGA Y PROCESAMIENTO ROBUSTO DE VISITAS (POWER BI)
+# CARGA DE DATOS DESDE LA NUEVA HOJA LIMPIA DE POWER BI
 # ---------------------------------------------------------
 @st.cache_data(ttl=60)
 def load_data_bi_visitas():
-    url_bi = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRNYj2gzHu2_4DVxA1bcYQl4i5H1xDetU0OPv0JvjQBVmiZFKNHJFnar8ib6FomdA/pub?gid=804927874&single=true&output=csv"
+    # Nueva URL pública sin celdas combinadas
+    url_bi = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRNYj2gzHu2_4DVxA1bcYQl4i5H1xDetU0OPv0JvjQBVmiZFKNHJFnar8ib6FomdA/pub?gid=985157017&single=true&output=csv"
     try:
         df_bi = pd.read_csv(url_bi, encoding="utf-8")
         df_bi.columns = df_bi.columns.str.strip()
         
-        # Identificar columna de porcentaje
-        col_pct = [c for c in df_bi.columns if "PORCENTAJE" in c.upper() or "VISITA" in c.upper()]
-        col_target = col_pct[0] if col_pct else df_bi.columns[-1]
+        # Buscar columna "Porcentaje" o similares
+        col_porcentaje = [c for c in df_bi.columns if "PORCENTAJE" in c.upper() or "VISITA" in c.upper()]
+        col_target = col_porcentaje[0] if col_porcentaje else "Porcentaje"
         
-        # Limpieza numérica de porcentaje
+        # Limpieza rigurosa de los porcentajes (ej: "85,5%" -> 85.5)
         s_clean = df_bi[col_target].astype(str).str.replace("%", "", regex=False)
         s_clean = s_clean.str.replace(",", ".", regex=False).str.strip()
-        df_bi["PCT_NUM"] = pd.to_numeric(s_clean, errors="coerce").fillna(0)
+        df_bi["PCT_NUM"] = pd.to_numeric(s_clean, errors="coerce").fillna(100.0)
         
-        # Ajustar escala decimal si aplica (0.85 -> 85)
+        # Si vienen en formato decimal puro (ej: 0.85 -> 85)
         if df_bi["PCT_NUM"].max() <= 1.0 and df_bi["PCT_NUM"].max() > 0:
             df_bi["PCT_NUM"] = df_bi["PCT_NUM"] * 100
 
@@ -57,23 +58,23 @@ def load_data_bi_visitas():
         col_alm = "ALMACEN" if "ALMACEN" in df_bi.columns else df_bi.columns[3]
         df_bi["ALMACEN_RAW"] = df_bi[col_alm].astype(str).str.strip()
         
-        # Extracción de Código/Nombre clave para cruce exitoso
+        # Generar Key única de cruce (limpia espacios, guiones y caracteres especiales)
         df_bi["KEY"] = df_bi["ALMACEN_RAW"].str.upper().str.replace(r"[^A-Z0-9]", "", regex=True)
         
-        # PROMEDIO DE VISITA POR ALMACEN
-        df_promedio = df_bi.groupby(["ALMACEN_RAW", "KEY"])["PCT_NUM"].mean().reset_index()
-        df_promedio.columns = ["ALMACEN_BI", "KEY", "PROMEDIO_VISITA_BI"]
+        # CALCULA EL PROMEDIO DE VISITA SI LA TIENDA TIENE VARIOS REGISTROS
+        df_promedio = df_bi.groupby("KEY")["PCT_NUM"].mean().reset_index()
+        df_promedio.columns = ["KEY", "PROMEDIO_VISITA_BI"]
         return df_promedio
     except Exception as e:
-        return pd.DataFrame(columns=["ALMACEN_BI", "KEY", "PROMEDIO_VISITA_BI"])
+        return pd.DataFrame(columns=["KEY", "PROMEDIO_VISITA_BI"])
 
 
 def render_home():
-    # Inicializar estado del filtro interactivo de tarjetas si no existe
-    if "filtro_categoria" not in st.session_state:
-        st.session_state.filtro_categoria = "TODAS"
+    # Estado de la sesión para controlar el filtro por clic de tarjeta
+    if "categoria_activa" not in st.session_state:
+        st.session_state.categoria_activa = "TODAS"
 
-    # Estilos CSS generales y de botones semáforo
+    # 🎨 ESTILOS CSS PARA BOTONES-TARJETAS DE COLORES VIVAS
     st.markdown(
         """
         <style>
@@ -96,18 +97,28 @@ def render_home():
                 border-radius: 8px;
                 border: 1px solid #E2E8F0;
             }
-            /* Botones estilo tarjeta de colores */
+            
+            /* Estilos de botones que parecen tarjetas de colores */
             div.stButton > button {
                 width: 100%;
-                border-radius: 8px;
-                height: 90px;
+                border-radius: 10px;
+                padding: 12px 10px;
                 font-weight: bold;
                 border: none;
-                transition: transform 0.2s;
+                color: white !important;
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+                transition: all 0.2s ease-in-out;
             }
             div.stButton > button:hover {
-                transform: scale(1.02);
+                transform: translateY(-2px);
+                box-shadow: 0 6px 12px -2px rgba(0, 0, 0, 0.2);
             }
+            
+            /* Colores vivos específicos para cada botón */
+            div.btn-todas > button { background-color: #1E3A8A !important; }
+            div.btn-consistente > button { background-color: #10B981 !important; }
+            div.btn-volatil > button { background-color: #F59E0B !important; }
+            div.btn-persistente > button { background-color: #EF4444 !important; }
         </style>
         """,
         unsafe_allow_html=True
@@ -119,7 +130,7 @@ def render_home():
         """
         <div style="background-color: #F9FAFB; padding: 12px 18px; border-radius: 8px; border-left: 4px solid #1E3A8A; margin-bottom: 15px;">
             <p style="margin: 0; font-size: 13px; color: #1F2937;">
-                📊 <strong>Centro de Control de Auditoría Interna:</strong> Vista consolidada en tiempo real de los 8 frentes de control operativo y financiero.
+                📊 <strong>Centro de Control de Auditoría Interna:</strong> Vista consolidada en tiempo real con matriz de calificación operativa de tiendas.
             </p>
         </div>
         """,
@@ -247,7 +258,7 @@ def render_home():
             st.info("Sin datos para generar el mapa zonal.")
 
     # ---------------------------------------------------------
-    # MATRIZ CON CRUCE DE VISITAS Y TARJETAS INTERACTIVAS
+    # MATRIZ CON TARJETAS DE COLORES INTERACTIVAS
     # ---------------------------------------------------------
     st.markdown("---")
     st.subheader("🎯 Matriz de Calificación Operativa por Tiendas")
@@ -257,15 +268,15 @@ def render_home():
         df_tiendas_count.columns = ["ALMACEN", "Total_Hallazgos"]
         df_tiendas_count["KEY"] = df_tiendas_count["ALMACEN"].astype(str).str.upper().str.replace(r"[^A-Z0-9]", "", regex=True)
 
-        # Cruce inteligente por Key normalizada con los datos de Visita BI
+        # Cruce con datos del BI
         if not df_bi_promedio.empty:
-            df_merged = pd.merge(df_tiendas_count, df_bi_promedio[["KEY", "PROMEDIO_VISITA_BI"]], on="KEY", how="left")
+            df_merged = pd.merge(df_tiendas_count, df_bi_promedio, on="KEY", how="left")
             df_merged["PROMEDIO_VISITA_BI"] = df_merged["PROMEDIO_VISITA_BI"].fillna(100.0)
         else:
             df_merged = df_tiendas_count.copy()
             df_merged["PROMEDIO_VISITA_BI"] = 100.0
 
-        # Cálculo del Descuento (0.5% por hallazgo) y Nota Ajustada
+        # Cálculo de Penalización y Nota Ajustada (0.5% por hallazgo)
         df_merged["Descuento_Pct"] = df_merged["Total_Hallazgos"] * 0.5
         df_merged["Nota_Ajustada"] = df_merged["PROMEDIO_VISITA_BI"] - df_merged["Descuento_Pct"]
         df_merged["Nota_Ajustada"] = df_merged["Nota_Ajustada"].apply(lambda x: max(0, x))
@@ -280,41 +291,47 @@ def render_home():
 
         df_merged["Clasificacion"] = df_merged["Nota_Ajustada"].apply(clasificar)
 
-        # Contadores por categoría
+        # Contadores para tarjetas
         c_cons = len(df_merged[df_merged["Clasificacion"] == "🟢 CONSISTENTE"])
         c_vol = len(df_merged[df_merged["Clasificacion"] == "🟡 VOLÁTIL"])
         c_per = len(df_merged[df_merged["Clasificacion"] == "🔴 PERSISTENTE"])
 
-        # ---------------------------------------------------------
-        # TARJETAS / BOTONES DE COLORES INTERACTIVOS
-        # ---------------------------------------------------------
-        btn1, btn2, btn3, btn4 = st.columns(4)
+        # 🎛️ TARJETAS BOTÓN INTERACTIVAS CON COLORES DE FONDO VIVOS
+        b1, b2, b3, b4 = st.columns(4)
 
-        with btn1:
-            if st.button(f"🌐 TODAS\n({len(df_merged)} Tiendas)"):
-                st.session_state.filtro_categoria = "TODAS"
+        with b1:
+            st.markdown('<div class="btn-todas">', unsafe_allow_html=True)
+            if st.button(f"🌐 TODAS\n{len(df_merged)} Tiendas"):
+                st.session_state.categoria_activa = "TODAS"
+            st.markdown('</div>', unsafe_allow_html=True)
 
-        with btn2:
-            if st.button(f"🟢 CONSISTENTE\n({c_cons} Tiendas)"):
-                st.session_state.filtro_categoria = "🟢 CONSISTENTE"
+        with b2:
+            st.markdown('<div class="btn-consistente">', unsafe_allow_html=True)
+            if st.button(f"🟢 CONSISTENTE\n{c_cons} Tiendas"):
+                st.session_state.categoria_activa = "🟢 CONSISTENTE"
+            st.markdown('</div>', unsafe_allow_html=True)
 
-        with btn3:
-            if st.button(f"🟡 VOLÁTIL\n({c_vol} Tiendas)"):
-                st.session_state.filtro_categoria = "🟡 VOLÁTIL"
+        with b3:
+            st.markdown('<div class="btn-volatil">', unsafe_allow_html=True)
+            if st.button(f"🟡 VOLÁTIL\n{c_vol} Tiendas"):
+                st.session_state.categoria_activa = "🟡 VOLÁTIL"
+            st.markdown('</div>', unsafe_allow_html=True)
 
-        with btn4:
-            if st.button(f"🔴 PERSISTENTE\n({c_per} Tiendas)"):
-                st.session_state.filtro_categoria = "🔴 PERSISTENTE"
+        with b4:
+            st.markdown('<div class="btn-persistente">', unsafe_allow_html=True)
+            if st.button(f"🔴 PERSISTENTE\n{c_per} Tiendas"):
+                st.session_state.categoria_activa = "🔴 PERSISTENTE"
+            st.markdown('</div>', unsafe_allow_html=True)
 
-        st.caption(f"Filtro activo: **{st.session_state.filtro_categoria}** (Haz clic en una tarjeta para cambiar de categoría)")
+        st.caption(f"Filtro seleccionado: **{st.session_state.categoria_activa}** (Haz clic en cualquiera de las tarjetas de color de arriba para filtrar la tabla)")
 
-        # Aplicar el filtro seleccionado
-        if st.session_state.filtro_categoria != "TODAS":
-            df_filtrada = df_merged[df_merged["Clasificacion"] == st.session_state.filtro_categoria].copy()
+        # Aplicar el filtro según la tarjeta presionada
+        if st.session_state.categoria_activa != "TODAS":
+            df_filtrada = df_merged[df_merged["Clasificacion"] == st.session_state.categoria_activa].copy()
         else:
             df_filtrada = df_merged.copy()
 
-        # Formatear columnas para visualización en la tabla
+        # Preparación final de columnas
         df_filtrada["Porcentaje Visita (BI)"] = df_filtrada["PROMEDIO_VISITA_BI"].apply(lambda x: f"{x:.1f}%")
         df_filtrada["Porcentaje Final Ajustado"] = df_filtrada["Nota_Ajustada"].apply(lambda x: f"{x:.1f}%")
         df_filtrada["Total Hallazgos Auditados"] = df_filtrada["Total_Hallazgos"]
