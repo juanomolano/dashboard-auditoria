@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 
 # ---------------------------------------------------------
-# IMPORTACIONES SEGURAS PARA EVITAR IMPORTERROR
+# IMPORTACIONES SEGURAS DE INFORMES
 # ---------------------------------------------------------
 from views.Obsequios import load_data_obsequios
 from views.Anulaciones import load_data_anulaciones
@@ -11,7 +11,6 @@ from views.Documentos import load_data_documentos
 from views.Tarifas import load_data_tarifas
 from views.AperturasCierres import load_data_aperturas
 
-# Intento de importación flexible para Tarjetas
 try:
     from views.ConciliacionTarjetas import load_data_tarjetas as load_data_m6
 except ImportError:
@@ -20,7 +19,6 @@ except ImportError:
     except ImportError:
         load_data_m6 = lambda: pd.DataFrame()
 
-# Intento de importación flexible para Link Pago
 try:
     from views.ConciliacionLinkPago import load_data_links as load_data_m7
 except ImportError:
@@ -32,8 +30,46 @@ except ImportError:
 from views.ConciliacionAddi import load_data_addi
 
 
+# ---------------------------------------------------------
+# CARGA DE DATOS DE POWER BI (PROMEDIO VISITAS)
+# ---------------------------------------------------------
+@st.cache_data(ttl=60)
+def load_data_bi_visitas():
+    url_bi = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRNYj2gzHu2_4DVxA1bcYQl4i5H1xDetU0OPv0JvjQBVmiZFKNHJFnar8ib6FomdA/pub?gid=804927874&single=true&output=csv"
+    try:
+        df_bi = pd.read_csv(url_bi, encoding="utf-8")
+        df_bi.columns = df_bi.columns.str.strip()
+        
+        # Limpieza de la columna PORCENTAJE VISITA
+        col_pct = [c for c in df_bi.columns if "PORCENTAJE" in c.upper() or "VISITA" in c.upper()]
+        col_target = col_pct[0] if col_pct else "PORCENTAJE VISITA"
+        
+        if col_target in df_bi.columns:
+            # Convertir a texto y limpiar %
+            s_clean = df_bi[col_target].astype(str).str.replace("%", "", regex=False)
+            s_clean = s_clean.str.replace(",", ".", regex=False).str.strip()
+            df_bi["PCT_VISITA_NUM"] = pd.to_numeric(s_clean, errors="coerce").fillna(0)
+            
+            # Si los valores vienen en formato decimal (ej: 0.85 en vez de 85)
+            if df_bi["PCT_VISITA_NUM"].max() <= 1.0 and df_bi["PCT_VISITA_NUM"].max() > 0:
+                df_bi["PCT_VISITA_NUM"] = df_bi["PCT_VISITA_NUM"] * 100
+        else:
+            df_bi["PCT_VISITA_NUM"] = 100.0
+
+        # Normalizar columna ALMACEN
+        col_alm = "ALMACEN" if "ALMACEN" in df_bi.columns else ("TIENDA" if "TIENDA" in df_bi.columns else df_bi.columns[3])
+        df_bi["ALMACEN_CLEAN"] = df_bi[col_alm].astype(str).str.strip()
+        
+        # PROMEDIO DE VISITAS POR TIENDA (agrupa por si hay varias visitas)
+        df_promedio = df_bi.groupby("ALMACEN_CLEAN")["PCT_VISITA_NUM"].mean().reset_index()
+        df_promedio.columns = ["ALMACEN", "PROMEDIO_VISITA_BI"]
+        return df_promedio
+    except Exception as e:
+        return pd.DataFrame(columns=["ALMACEN", "PROMEDIO_VISITA_BI"])
+
+
 def render_home():
-    # Estilos CSS para compactar el título, métricas y tarjetas del semáforo
+    # Estilos CSS generales
     st.markdown(
         """
         <style>
@@ -56,17 +92,6 @@ def render_home():
                 border-radius: 8px;
                 border: 1px solid #E2E8F0;
             }
-            .card-semaforo {
-                padding: 14px;
-                border-radius: 8px;
-                text-align: center;
-                color: white;
-                font-weight: bold;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            }
-            .consistente { background-color: #10B981; }
-            .volatil { background-color: #F59E0B; }
-            .persistente { background-color: #EF4444; }
         </style>
         """,
         unsafe_allow_html=True
@@ -78,7 +103,7 @@ def render_home():
         """
         <div style="background-color: #F9FAFB; padding: 12px 18px; border-radius: 8px; border-left: 4px solid #1E3A8A; margin-bottom: 15px;">
             <p style="margin: 0; font-size: 13px; color: #1F2937;">
-                📊 <strong>Centro de Control de Auditoría Interna:</strong> Vista consolidada en tiempo real de los 8 frentes de control con penalización del 0.5% por hallazgo sobre la calificación operativa de tiendas.
+                📊 <strong>Centro de Control de Auditoría Interna:</strong> Vista consolidada en tiempo real de los 8 frentes de control operativo y financiero.
             </p>
         </div>
         """,
@@ -86,9 +111,9 @@ def render_home():
     )
 
     # ---------------------------------------------------------
-    # CARGA Y CONSOLIDACIÓN DE DATOS MULTI-MÓDULO
+    # CARGA DE DATOS MULTI-MÓDULO
     # ---------------------------------------------------------
-    with st.spinner("Consolidando métricas generales de auditoría..."):
+    with st.spinner("Consolidando métricas e informes de auditoría..."):
         df_m1 = load_data_obsequios()
         df_m2 = load_data_anulaciones()
         df_m3 = load_data_documentos()
@@ -97,8 +122,8 @@ def render_home():
         df_m6 = load_data_m6()
         df_m7 = load_data_m7()
         df_m8 = load_data_addi()
+        df_bi_promedio = load_data_bi_visitas()
 
-    # Recuento por Módulo
     volumenes = {
         "Obsequios $1": len(df_m1) if isinstance(df_m1, pd.DataFrame) else 0,
         "Anulaciones Forma Pago": len(df_m2) if isinstance(df_m2, pd.DataFrame) else 0,
@@ -111,8 +136,6 @@ def render_home():
     }
     
     total_inconsistencias = sum(volumenes.values())
-    
-    # Impacto Financiero
     saldo_tarifas = df_m4["SALDO_NUMERICO"].sum() if isinstance(df_m4, pd.DataFrame) and "SALDO_NUMERICO" in df_m4.columns and not df_m4.empty else 0
 
     # Consolidador de Regionales
@@ -130,7 +153,7 @@ def render_home():
     df_reg_all = pd.concat(reg_list, ignore_index=True) if reg_list else pd.DataFrame()
     top_regional_global = df_reg_all["REGIONAL"].value_counts().index[0] if not df_reg_all.empty else "N/A"
 
-    # Consolidador de Almacenes
+    # Consolidador de Almacenes para Conteo de Hallazgos
     alm_list = []
     for df_mod in [df_m1, df_m2, df_m3, df_m4, df_m5, df_m6, df_m7, df_m8]:
         if isinstance(df_mod, pd.DataFrame) and not df_mod.empty:
@@ -153,7 +176,7 @@ def render_home():
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ---------------------------------------------------------
-    # VISUALIZACIONES PRINCIPALES DE CONTROL
+    # VISUALIZACIONES PRINCIPALES
     # ---------------------------------------------------------
     col_chart1, col_chart2 = st.columns([1.1, 0.9])
 
@@ -208,23 +231,27 @@ def render_home():
             st.info("Sin datos para generar el mapa zonal.")
 
     # ---------------------------------------------------------
-    # MATRIZ DE CLASIFICACIÓN DE TIENDAS Y PENALIZACIÓN (0.5% POR HALLAZGO)
+    # MATRIZ DINÁMICA CON FILTRADO INTERACTIVO
     # ---------------------------------------------------------
     st.markdown("---")
     st.subheader("🎯 Matriz de Calificación Operativa por Tiendas")
-    st.write("Afectación de la nota base de Visitas (Power BI) restando un **0.5%** por cada hallazgo detectado:")
 
     if not df_alm_all.empty:
         df_tiendas_count = df_alm_all.value_counts().reset_index()
         df_tiendas_count.columns = ["ALMACEN", "Total_Hallazgos"]
 
-        # 🛠️ CÁLCULO DE LA PENALIZACIÓN: Cada hallazgo resta 0.5%
-        df_tiendas_count["Penalizacion_Pct"] = df_tiendas_count["Total_Hallazgos"] * 0.5
+        # Cruce con el Promedio de Visita BI
+        if not df_bi_promedio.empty:
+            df_merged = pd.merge(df_tiendas_count, df_bi_promedio, on="ALMACEN", how="left")
+            df_merged["PROMEDIO_VISITA_BI"] = df_merged["PROMEDIO_VISITA_BI"].fillna(100.0) # Si no tiene visita, asume 100%
+        else:
+            df_merged = df_tiendas_count.copy()
+            df_merged["PROMEDIO_VISITA_BI"] = 100.0
 
-        # 🛠️ NOTA BASE (Ejemplo: 100% base o el promedio de visitas del Power BI)
-        df_tiendas_count["Nota_Base_Visitas"] = 100.0  # Puedes ajustarlo a 85.0 o conectarlo a tu dataset
-        df_tiendas_count["Nota_Ajustada"] = df_tiendas_count["Nota_Base_Visitas"] - df_tiendas_count["Penalizacion_Pct"]
-        df_tiendas_count["Nota_Ajustada"] = df_tiendas_count["Nota_Ajustada"].apply(lambda x: max(0, x))
+        # Cálculo de Penalización y Nota Ajustada (0.5% por hallazgo)
+        df_merged["Descuento_Pct"] = df_merged["Total_Hallazgos"] * 0.5
+        df_merged["Nota_Ajustada"] = df_merged["PROMEDIO_VISITA_BI"] - df_merged["Descuento_Pct"]
+        df_merged["Nota_Ajustada"] = df_merged["Nota_Ajustada"].apply(lambda x: max(0, x))
 
         def clasificar(nota):
             if nota >= 85:
@@ -234,60 +261,46 @@ def render_home():
             else:
                 return "🔴 PERSISTENTE"
 
-        df_tiendas_count["Clasificacion"] = df_tiendas_count["Nota_Ajustada"].apply(clasificar)
+        df_merged["Clasificacion"] = df_merged["Nota_Ajustada"].apply(clasificar)
 
-        # Contadores para el Semáforo
-        c_cons = len(df_tiendas_count[df_tiendas_count["Clasificacion"] == "🟢 CONSISTENTE"])
-        c_vol = len(df_tiendas_count[df_tiendas_count["Clasificacion"] == "🟡 VOLÁTIL"])
-        c_per = len(df_tiendas_count[df_tiendas_count["Clasificacion"] == "🔴 PERSISTENTE"])
+        # Conteo de categorías
+        c_cons = len(df_merged[df_merged["Clasificacion"] == "🟢 CONSISTENTE"])
+        c_vol = len(df_merged[df_merged["Clasificacion"] == "🟡 VOLÁTIL"])
+        c_per = len(df_merged[df_merged["Clasificacion"] == "🔴 PERSISTENTE"])
 
-        # Tarjetas Semáforo Estilo Gerencial
-        sem1, sem2, sem3 = st.columns(3)
-        with sem1:
-            st.markdown(f"""
-                <div class="card-semaforo consistente">
-                    <h4 style="margin:0; color:white;">🟢 CONSISTENTE</h4>
-                    <p style="margin:2px 0; font-size:12px;">Nota Ajustada ≥ 85%</p>
-                    <h2 style="margin:2px 0; color:white;">{c_cons} Tiendas</h2>
-                </div>
-            """, unsafe_allow_html=True)
+        # FILTRO DE INTERACCIÓN MEDIANTE RADIO O SELECTOR INTERACTIVO
+        filtro_clasif = st.radio(
+            "Filtrar almacenes por clasificación de riesgo:",
+            options=["TODAS", "🟢 CONSISTENTE", "🟡 VOLÁTIL", "🔴 PERSISTENTE"],
+            format_func=lambda x: f"TODAS ({len(df_merged)})" if x == "TODAS" else (
+                f"🟢 CONSISTENTE ({c_cons})" if x == "🟢 CONSISTENTE" else (
+                    f"🟡 VOLÁTIL ({c_vol})" if x == "🟡 VOLÁTIL" else f"🔴 PERSISTENTE ({c_per})"
+                )
+            ),
+            horizontal=True
+        )
 
-        with sem2:
-            st.markdown(f"""
-                <div class="card-semaforo volatil">
-                    <h4 style="margin:0; color:white;">🟡 VOLÁTIL</h4>
-                    <p style="margin:2px 0; font-size:12px;">Nota Ajustada 70% a 84%</p>
-                    <h2 style="margin:2px 0; color:white;">{c_vol} Tiendas</h2>
-                </div>
-            """, unsafe_allow_html=True)
+        # Aplicar filtro a la tabla según la selección
+        if filtro_clasif != "TODAS":
+            df_tabla_filtrada = df_merged[df_merged["Clasificacion"] == filtro_clasif].copy()
+        else:
+            df_tabla_filtrada = df_merged.copy()
 
-        with sem3:
-            st.markdown(f"""
-                <div class="card-semaforo persistente">
-                    <h4 style="margin:0; color:white;">🔴 PERSISTENTE</h4>
-                    <p style="margin:2px 0; font-size:12px;">Nota Ajustada < 70%</p>
-                    <h2 style="margin:2px 0; color:white;">{c_per} Tiendas</h2>
-                </div>
-            """, unsafe_allow_html=True)
+        # Preparación de columnas con formato limpio
+        df_tabla_filtrada["Porcentaje Visita (BI)"] = df_tabla_filtrada["PROMEDIO_VISITA_BI"].apply(lambda x: f"{x:.1f}%")
+        df_tabla_filtrada["Porcentaje Final Ajustado"] = df_tabla_filtrada["Nota_Ajustada"].apply(lambda x: f"{x:.1f}%")
+        df_tabla_filtrada["Total Hallazgos Auditados"] = df_tabla_filtrada["Total_Hallazgos"]
 
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        # Preparar Tabla Auditable
-        df_show = df_tiendas_count.copy()
-        df_show["Descuento"] = df_show["Penalizacion_Pct"].apply(lambda x: f"-{x:.1f}%")
-        df_show["Nota Base"] = df_show["Nota_Base_Visitas"].apply(lambda x: f"{x:.1f}%")
-        df_show["Nota Final Ajustada"] = df_show["Nota_Ajustada"].apply(lambda x: f"{x:.1f}%")
-
-        cols_tabla = ["ALMACEN", "Total_Hallazgos", "Descuento", "Nota Base", "Nota Final Ajustada", "Clasificacion"]
+        cols_finales = ["ALMACEN", "Total Hallazgos Auditados", "Porcentaje Visita (BI)", "Porcentaje Final Ajustado", "Clasificacion"]
 
         st.dataframe(
-            df_show[cols_tabla].sort_values(by="Total_Hallazgos", ascending=False),
+            df_tabla_filtrada[cols_finales].sort_values(by="Total Hallazgos Auditados", ascending=False),
             use_container_width=True,
             hide_index=True
         )
 
     # ---------------------------------------------------------
-    # RESUMEN EJECUTIVO DE PROCESOS AUDITADOS
+    # RESUMEN EJECUTIVO DE PROCESOS
     # ---------------------------------------------------------
     st.markdown("---")
     st.subheader("📋 Estado Operativo de los 8 Módulos de Control")
