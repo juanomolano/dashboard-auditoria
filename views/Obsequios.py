@@ -152,9 +152,9 @@ def render_informe_01():
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ---------------------------------------------------------
-    # VISUALIZACIONES Y GRÁFICOS (AJUSTADOS DE MARGEN Y LEYENDA)
+    # VISUALIZACIONES Y GRÁFICOS
     # ---------------------------------------------------------
-    col_chart1, col_chart2 = st.columns([1.2, 0.8])
+    col_chart1, col_chart2 = st.columns([1.1, 0.9])
 
     with col_chart1:
         st.markdown("##### 🏪 Top 10 Almacenes con Mayor Número de Casos")
@@ -168,6 +168,9 @@ def render_informe_01():
             )
             top_almacenes["Etiqueta"] = top_almacenes["CODALMACEN"].astype(str) + " - " + top_almacenes["ALMACEN"]
             
+            # Calcular un margen dinámico para que la etiqueta número 40 no toque el borde
+            max_val = top_almacenes["Cantidad"].max() if not top_almacenes.empty else 10
+            
             fig_bar = px.bar(
                 top_almacenes,
                 x="Cantidad",
@@ -180,9 +183,9 @@ def render_informe_01():
             fig_bar.update_layout(
                 xaxis_title="Cantidad de Registros",
                 yaxis_title="",
-                # 🛠️ Se amplía el margen izquierdo a 230px para que el nombre del almacén se vea entero
-                margin=dict(l=230, r=50, t=20, b=20),
-                height=400,
+                xaxis=dict(range=[0, max_val * 1.15]),  # 🛠️ Le da 15% más de espacio a la derecha para ver el 40
+                margin=dict(l=0, r=60, t=20, b=20),     # 🛠️ Margen derecho ampliado
+                height=380,
                 paper_bgcolor="rgba(0,0,0,0)",
                 plot_bgcolor="rgba(0,0,0,0)"
             )
@@ -203,13 +206,14 @@ def render_informe_01():
                 hole=0.45,
                 color_discrete_sequence=px.colors.sequential.Blues_r
             )
-            # 🛠️ Mostramos solo porcentaje interno y activamos la leyenda para evitar montoneras
-            fig_pie.update_traces(textinfo="percent", textposition="inside")
+            # 🛠️ Gráfica GRANDE como les gusta a los jefes, sin leyenda lateral y ocultando líneas amontonadas pequeñas
+            fig_pie.update_traces(textinfo="percent+label", textposition="auto")
             fig_pie.update_layout(
-                showlegend=True,
-                legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.02),
+                showlegend=False,
+                uniformtext_minsize=10,
+                uniformtext_mode="hide", # Oculta textos de rebanadas microscópicas para mantenerla limpia
                 margin=dict(l=10, r=10, t=20, b=20),
-                height=400,
+                height=380,
                 paper_bgcolor="rgba(0,0,0,0)"
             )
             st.plotly_chart(fig_pie, use_container_width=True)
