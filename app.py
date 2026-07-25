@@ -9,6 +9,7 @@ from views.AperturasCierres import render_informe_05
 from views.ConciliacionTarjetas import render_informe_06
 from views.ConciliacionLinkPago import render_informe_07
 from views.ConciliacionAddi import render_informe_08
+from views.GestionRetailBI import render_gestion_retail  # <--- NUEVA IMPORTACIÓN
 
 # Configuración principal de la página
 st.set_page_config(
@@ -34,6 +35,7 @@ opcion_menu = st.sidebar.radio(
         "💳 Conciliación de Pagos con Tarjeta",
         "🔗 Conciliación Pagos con Link de Pago",
         "⚡ Conciliación de Pagos con Addi",
+        "📊 Gestión Auditorías Retail (Power BI)",  # <--- NUEVA OPCIÓN
     ]
 )
 
@@ -63,3 +65,5 @@ elif opcion_menu == "🔗 Conciliación Pagos con Link de Pago":
     render_informe_07()
 elif opcion_menu == "⚡ Conciliación de Pagos con Addi":
     render_informe_08()
+elif opcion_menu == "📊 Gestión Auditorías Retail (Power BI)":
+    render_gestion_retail()  # <--- NUEVA RUTA
