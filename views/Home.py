@@ -64,7 +64,7 @@ def render_home():
     if "categoria_activa" not in st.session_state:
         st.session_state.categoria_activa = "TODAS"
 
-    # 🎨 ESTILOS CSS PARA TARJETAS CON FONDO DE COLOR VIVO Y SIN AFECTAR OTROS BOTONES
+    # 🎨 ESTILOS CSS CON INYECCIÓN DIRECTA PARA RENDERIZAR FONDOS DE COLOR VIVOS
     st.markdown(
         """
         <style>
@@ -88,42 +88,30 @@ def render_home():
                 border: 1px solid #E2E8F0;
             }
             
-            /* Clases de colores específicos para botones-tarjetas */
-            div.btn-todas > button {
+            /* FORZADO DE FONDO Y TEXTO BLANCO EN BOTONES DE TARJETAS */
+            div.btn-todas button[data-testid="stBaseButton-secondary"] {
                 background-color: #1E3A8A !important;
-                color: white !important;
-                font-weight: bold !important;
-                border-radius: 8px !important;
+                color: #FFFFFF !important;
                 border: none !important;
-                width: 100% !important;
-                padding: 10px 4px !important;
+                font-weight: bold !important;
             }
-            div.btn-bajo > button {
+            div.btn-bajo button[data-testid="stBaseButton-secondary"] {
                 background-color: #10B981 !important;
-                color: white !important;
-                font-weight: bold !important;
-                border-radius: 8px !important;
+                color: #FFFFFF !important;
                 border: none !important;
-                width: 100% !important;
-                padding: 10px 4px !important;
+                font-weight: bold !important;
             }
-            div.btn-medio > button {
+            div.btn-medio button[data-testid="stBaseButton-secondary"] {
                 background-color: #F59E0B !important;
-                color: white !important;
-                font-weight: bold !important;
-                border-radius: 8px !important;
+                color: #FFFFFF !important;
                 border: none !important;
-                width: 100% !important;
-                padding: 10px 4px !important;
+                font-weight: bold !important;
             }
-            div.btn-alto > button {
+            div.btn-alto button[data-testid="stBaseButton-secondary"] {
                 background-color: #EF4444 !important;
-                color: white !important;
-                font-weight: bold !important;
-                border-radius: 8px !important;
+                color: #FFFFFF !important;
                 border: none !important;
-                width: 100% !important;
-                padding: 10px 4px !important;
+                font-weight: bold !important;
             }
         </style>
         """,
@@ -312,7 +300,7 @@ def render_home():
         c_medio = len(df_merged[df_merged["Riesgo"] == "🟡 RIESGO MEDIO"])
         c_alto = len(df_merged[df_merged["Riesgo"] == "🔴 RIESGO ALTO"])
 
-        # 🎛️ TARJETAS CON FONDO DE COLOR VIVO COMPLETO
+        # 🎛️ TARJETAS CON COLORES DE FONDO VIVOS
         b1, b2, b3, b4 = st.columns(4)
 
         with b1:
@@ -347,7 +335,7 @@ def render_home():
         else:
             df_filtrada = df_merged.copy()
 
-        # Ordenar primero por Total_Hallazgos (evita el KeyError)
+        # Ordenar primero por Total_Hallazgos
         df_filtrada = df_filtrada.sort_values(by="Total_Hallazgos", ascending=False)
 
         # Formatear columnas para visualización
