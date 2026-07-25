@@ -203,9 +203,10 @@ def render_informe_01():
                 names="REGIONAL",
                 values="Cantidad",
                 hole=0.45,
-                color_discrete_sequence=px.colors.sequential.Blues_r
+                # 🎨 Paleta multicolor variada pero corporativa
+                color_discrete_sequence=px.colors.qualitative.Bold
             )
-            # 🛠️ Tamaño mediano equilibrado con Porcentaje interno + Leyenda lateral para leer nombres con claridad
+            # 🛠️ Tamaño mediano ideal (height=375) con leyenda lateral a color y porcentaje interno
             fig_pie.update_traces(textinfo="percent", textposition="inside")
             fig_pie.update_layout(
                 showlegend=True,
@@ -217,8 +218,8 @@ def render_informe_01():
                     x=1.02,
                     font=dict(size=11, color=COLOR_NEUTRAL_DARK)
                 ),
-                margin=dict(l=10, r=10, t=20, b=20),
-                height=350,
+                margin=dict(l=10, r=10, t=10, b=10),
+                height=375,
                 paper_bgcolor="rgba(0,0,0,0)"
             )
             st.plotly_chart(fig_pie, use_container_width=True)
