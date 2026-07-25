@@ -255,7 +255,7 @@ def render_home():
             df_merged = df_tiendas_count.copy()
             df_merged["PROMEDIO_VISITA_BI"] = 0.0
 
-        # Cálculo de Penalización y Nota Ajustada (Permite valores negativos si no se ha visitado)
+        # Cálculo de Penalización (0.5% por hallazgo) y Nota Ajustada
         df_merged["Descuento_Pct"] = df_merged["Total_Hallazgos"] * 0.5
         df_merged["Nota_Ajustada"] = df_merged["PROMEDIO_VISITA_BI"] - df_merged["Descuento_Pct"]
 
@@ -274,7 +274,7 @@ def render_home():
         c_medio = len(df_merged[df_merged["Riesgo"] == "🟡 RIESGO MEDIO"])
         c_alto = len(df_merged[df_merged["Riesgo"] == "🔴 RIESGO ALTO"])
 
-        # 🎛️ TARJETAS BOTÓN DE COLORES VIVOS (FONDO DE COLOR CON CEBORRA DE CSS)
+        # 🎛️ TARJETAS BOTÓN DE COLORES VIVOS
         b1, b2, b3, b4 = st.columns(4)
 
         with b1:
@@ -357,17 +357,20 @@ def render_home():
         else:
             df_filtrada = df_merged.copy()
 
-        # Nombres ajustados para las columnas de la tabla
+        # 🛠️ NÚMERO DE HALLAZGOS + PORCENTAJE QUE SE RESTA EN UNA SOLA COLUMNA
+        df_filtrada["Total Hallazgos Informes"] = df_filtrada.apply(
+            lambda row: f"{row['Total_Hallazgos']} (-{row['Descuento_Pct']:.1f}%)", axis=1
+        )
+        
         df_filtrada["Porcentaje Visita"] = df_filtrada["PROMEDIO_VISITA_BI"].apply(
             lambda x: f"{x:.1f}%" if x > 0 else "0.0% (Sin Visita)"
         )
         df_filtrada["Porcentaje Final"] = df_filtrada["Nota_Ajustada"].apply(lambda x: f"{x:.1f}%")
-        df_filtrada["Total Hallazgos Informes"] = df_filtrada["Total_Hallazgos"]
 
         cols_finales = ["CODIGO", "ALMACEN", "Total Hallazgos Informes", "Porcentaje Visita", "Porcentaje Final", "Riesgo"]
 
         st.dataframe(
-            df_filtrada[cols_finales].sort_values(by="Total Hallazgos Informes", ascending=False),
+            df_filtrada[cols_finales].sort_values(by="Total_Hallazgos", ascending=False),
             use_container_width=True,
             hide_index=True
         )
