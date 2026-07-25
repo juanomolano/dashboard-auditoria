@@ -20,17 +20,11 @@ def load_data_obsequios():
         df = pd.read_csv(url, encoding="utf-8")
         df.columns = df.columns.str.strip()
         
-        # Conversión de fechas especificando que el DÍA va primero (DD/MM/YYYY)
         if "FECHAFACTURA" in df.columns:
             df["FECHAFACTURA_DT"] = pd.to_datetime(df["FECHAFACTURA"], dayfirst=True, errors="coerce")
-            
-            # Crear columna formateada sin la hora (DD/MM/YYYY) para la tabla
             df["FECHA_MOSTRAR"] = df["FECHAFACTURA_DT"].dt.strftime("%d/%m/%Y")
-            
-            # Crear columna Año-Mes para agrupaciones mensuales (YYYY-MM)
             df["AÑO_MES"] = df["FECHAFACTURA_DT"].dt.to_period("M")
             
-        # Asegurar tipos de datos adecuados
         if "CODALMACEN" in df.columns:
             df["CODALMACEN"] = df["CODALMACEN"].astype(str)
             
@@ -49,7 +43,6 @@ def render_informe_01():
                 padding-bottom: 0px !important;
                 margin-bottom: 10px !important;
             }
-            /* Permite salto de línea en las etiquetas de métricas sin poner puntos suspensivos (...) */
             [data-testid="stMetricLabel"] {
                 font-size: 0.8rem !important;
                 white-space: normal !important;
@@ -58,13 +51,11 @@ def render_informe_01():
                 text-overflow: clip !important;
                 line-height: 1.2 !important;
             }
-            /* Permite que valores largos (ej: BOGOTA NORTE) quepan completos */
             [data-testid="stMetricValue"] {
                 font-size: 1.05rem !important;
                 white-space: normal !important;
                 word-wrap: break-word !important;
             }
-            /* Caja contenedora para las tarjetas de KPIs */
             div[data-testid="stMetric"] {
                 background-color: #F8FAFC;
                 padding: 10px 12px;
@@ -161,7 +152,7 @@ def render_informe_01():
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ---------------------------------------------------------
-    # VISUALIZACIONES Y GRÁFICOS
+    # VISUALIZACIONES Y GRÁFICOS (AJUSTADOS DE MARGEN Y LEYENDA)
     # ---------------------------------------------------------
     col_chart1, col_chart2 = st.columns([1.2, 0.8])
 
@@ -189,8 +180,9 @@ def render_informe_01():
             fig_bar.update_layout(
                 xaxis_title="Cantidad de Registros",
                 yaxis_title="",
-                margin=dict(l=0, r=20, t=20, b=20),
-                height=380,
+                # 🛠️ Se amplía el margen izquierdo a 230px para que el nombre del almacén se vea entero
+                margin=dict(l=230, r=50, t=20, b=20),
+                height=400,
                 paper_bgcolor="rgba(0,0,0,0)",
                 plot_bgcolor="rgba(0,0,0,0)"
             )
@@ -211,11 +203,13 @@ def render_informe_01():
                 hole=0.45,
                 color_discrete_sequence=px.colors.sequential.Blues_r
             )
-            fig_pie.update_traces(textinfo="percent+label")
+            # 🛠️ Mostramos solo porcentaje interno y activamos la leyenda para evitar montoneras
+            fig_pie.update_traces(textinfo="percent", textposition="inside")
             fig_pie.update_layout(
-                showlegend=False,
+                showlegend=True,
+                legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.02),
                 margin=dict(l=10, r=10, t=20, b=20),
-                height=380,
+                height=400,
                 paper_bgcolor="rgba(0,0,0,0)"
             )
             st.plotly_chart(fig_pie, use_container_width=True)
@@ -261,7 +255,6 @@ def render_informe_01():
     st.subheader("📋 Detalle Auditable de Registros")
     st.write("Filtra y exporta los casos para enviar a las Jefaturas Regionales:")
     
-    # Preparación de la vista reemplazando la columna interna por la limpia
     df_tabla = df_filtered.copy()
     if "FECHA_MOSTRAR" in df_tabla.columns:
         df_tabla["FECHAFACTURA"] = df_tabla["FECHA_MOSTRAR"]
