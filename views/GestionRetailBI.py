@@ -18,5 +18,5 @@ def render_gestion_retail():
     # URL de tu reporte seguro de Power BI
     powerbi_url = "https://app.powerbi.com/reportEmbed?reportId=36c41fe2-4cd0-4214-9f9a-2941b9d0c442&autoAuth=true&ctid=9a1892f1-89d9-4e33-97be-4e1d96ddced8"
     
-    # Renderizado interactivo a pantalla completa
-    components.iframe(src=powerbi_url, width=1250, height=800, scrolling=True)
+# AHORA (Reducimos la altura a 620 para eliminar el espacio sobrante):
+components.iframe(src=powerbi_url, width=1250, height=620, scrolling=True)
