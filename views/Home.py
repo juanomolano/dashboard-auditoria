@@ -2,13 +2,18 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# 1. IMPORTAR LAS FUNCIONES DE CARGA DE DATOS DE LOS OTROS MÓDULOS
+# 🚨 IMPORTANTE: Importar todas las funciones de datos que usa Home.py
 from views.Obsequios import load_data_obsequios
-# (Si usas otras funciones en Home, impórtalas también aquí, por ejemplo:)
-# from views.Anulaciones import load_data_anulaciones 
+from views.Anulaciones import load_data_anulaciones
+from views.Documentos import load_data_documentos
+from views.Tarifas import load_data_tarifas
+from views.AperturasCierres import load_data_aperturas
+from views.ConciliacionTarjetas import load_data_tarjetas
+from views.ConciliacionLinkPago import load_data_links
+from views.ConciliacionAddi import load_data_addi
 
 def render_home():
-    # Estilos CSS para compactar títulos y métricas
+    # Estilos CSS para compactar el título y las tarjetas
     st.markdown(
         """
         <style>
@@ -17,7 +22,7 @@ def render_home():
                 padding-bottom: 0px !important;
             }
             [data-testid="stMetricValue"] {
-                font-size: 1.2rem !important;
+                font-size: 1.15rem !important;
                 white-space: normal !important;
                 word-wrap: break-word !important;
             }
