@@ -33,7 +33,7 @@ from views.ConciliacionAddi import load_data_addi
 
 
 def render_home():
-    # Estilos CSS para compactar el título, ajustar métricas y evitar que se corten textos
+    # Estilos CSS para compactar el título, métricas y tarjetas del semáforo
     st.markdown(
         """
         <style>
@@ -56,6 +56,17 @@ def render_home():
                 border-radius: 8px;
                 border: 1px solid #E2E8F0;
             }
+            .card-semaforo {
+                padding: 14px;
+                border-radius: 8px;
+                text-align: center;
+                color: white;
+                font-weight: bold;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            }
+            .consistente { background-color: #10B981; }
+            .volatil { background-color: #F59E0B; }
+            .persistente { background-color: #EF4444; }
         </style>
         """,
         unsafe_allow_html=True
@@ -67,7 +78,7 @@ def render_home():
         """
         <div style="background-color: #F9FAFB; padding: 12px 18px; border-radius: 8px; border-left: 4px solid #1E3A8A; margin-bottom: 15px;">
             <p style="margin: 0; font-size: 13px; color: #1F2937;">
-                📊 <strong>Centro de Control de Auditoría Interna:</strong> Vista consolidada en tiempo real de los 8 frentes de control operativo y financiero.
+                📊 <strong>Centro de Control de Auditoría Interna:</strong> Vista consolidada en tiempo real de los 8 frentes de control con penalización del 0.5% por hallazgo sobre la calificación operativa de tiendas.
             </p>
         </div>
         """,
@@ -77,7 +88,7 @@ def render_home():
     # ---------------------------------------------------------
     # CARGA Y CONSOLIDACIÓN DE DATOS MULTI-MÓDULO
     # ---------------------------------------------------------
-    with st.spinner("Consolidando métricas generales..."):
+    with st.spinner("Consolidando métricas generales de auditoría..."):
         df_m1 = load_data_obsequios()
         df_m2 = load_data_anulaciones()
         df_m3 = load_data_documentos()
@@ -123,7 +134,7 @@ def render_home():
     alm_list = []
     for df_mod in [df_m1, df_m2, df_m3, df_m4, df_m5, df_m6, df_m7, df_m8]:
         if isinstance(df_mod, pd.DataFrame) and not df_mod.empty:
-            col_alm = "ALMACEN" if "ALMACEN" in df_mod.columns else ("TIENDA" if "TIENDA" in df_mod.columns else None)
+            col_alm = "ALMACEN" if "ALMACEN" in df_mod.columns else ("TIENDA" if "TIENDA" in df_mod.columns else ("NOMBRE_ALMACEN" if "NOMBRE_ALMACEN" in df_mod.columns else None))
             if col_alm:
                 alm_list.append(df_mod[col_alm].dropna())
             
@@ -195,6 +206,85 @@ def render_home():
             st.plotly_chart(fig_heatmap, use_container_width=True)
         else:
             st.info("Sin datos para generar el mapa zonal.")
+
+    # ---------------------------------------------------------
+    # MATRIZ DE CLASIFICACIÓN DE TIENDAS Y PENALIZACIÓN (0.5% POR HALLAZGO)
+    # ---------------------------------------------------------
+    st.markdown("---")
+    st.subheader("🎯 Matriz de Calificación Operativa por Tiendas")
+    st.write("Afectación de la nota base de Visitas (Power BI) restando un **0.5%** por cada hallazgo detectado:")
+
+    if not df_alm_all.empty:
+        df_tiendas_count = df_alm_all.value_counts().reset_index()
+        df_tiendas_count.columns = ["ALMACEN", "Total_Hallazgos"]
+
+        # 🛠️ CÁLCULO DE LA PENALIZACIÓN: Cada hallazgo resta 0.5%
+        df_tiendas_count["Penalizacion_Pct"] = df_tiendas_count["Total_Hallazgos"] * 0.5
+
+        # 🛠️ NOTA BASE (Ejemplo: 100% base o el promedio de visitas del Power BI)
+        df_tiendas_count["Nota_Base_Visitas"] = 100.0  # Puedes ajustarlo a 85.0 o conectarlo a tu dataset
+        df_tiendas_count["Nota_Ajustada"] = df_tiendas_count["Nota_Base_Visitas"] - df_tiendas_count["Penalizacion_Pct"]
+        df_tiendas_count["Nota_Ajustada"] = df_tiendas_count["Nota_Ajustada"].apply(lambda x: max(0, x))
+
+        def clasificar(nota):
+            if nota >= 85:
+                return "🟢 CONSISTENTE"
+            elif nota >= 70:
+                return "🟡 VOLÁTIL"
+            else:
+                return "🔴 PERSISTENTE"
+
+        df_tiendas_count["Clasificacion"] = df_tiendas_count["Nota_Ajustada"].apply(clasificar)
+
+        # Contadores para el Semáforo
+        c_cons = len(df_tiendas_count[df_tiendas_count["Clasificacion"] == "🟢 CONSISTENTE"])
+        c_vol = len(df_tiendas_count[df_tiendas_count["Clasificacion"] == "🟡 VOLÁTIL"])
+        c_per = len(df_tiendas_count[df_tiendas_count["Clasificacion"] == "🔴 PERSISTENTE"])
+
+        # Tarjetas Semáforo Estilo Gerencial
+        sem1, sem2, sem3 = st.columns(3)
+        with sem1:
+            st.markdown(f"""
+                <div class="card-semaforo consistente">
+                    <h4 style="margin:0; color:white;">🟢 CONSISTENTE</h4>
+                    <p style="margin:2px 0; font-size:12px;">Nota Ajustada ≥ 85%</p>
+                    <h2 style="margin:2px 0; color:white;">{c_cons} Tiendas</h2>
+                </div>
+            """, unsafe_allow_html=True)
+
+        with sem2:
+            st.markdown(f"""
+                <div class="card-semaforo volatil">
+                    <h4 style="margin:0; color:white;">🟡 VOLÁTIL</h4>
+                    <p style="margin:2px 0; font-size:12px;">Nota Ajustada 70% a 84%</p>
+                    <h2 style="margin:2px 0; color:white;">{c_vol} Tiendas</h2>
+                </div>
+            """, unsafe_allow_html=True)
+
+        with sem3:
+            st.markdown(f"""
+                <div class="card-semaforo persistente">
+                    <h4 style="margin:0; color:white;">🔴 PERSISTENTE</h4>
+                    <p style="margin:2px 0; font-size:12px;">Nota Ajustada < 70%</p>
+                    <h2 style="margin:2px 0; color:white;">{c_per} Tiendas</h2>
+                </div>
+            """, unsafe_allow_html=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # Preparar Tabla Auditable
+        df_show = df_tiendas_count.copy()
+        df_show["Descuento"] = df_show["Penalizacion_Pct"].apply(lambda x: f"-{x:.1f}%")
+        df_show["Nota Base"] = df_show["Nota_Base_Visitas"].apply(lambda x: f"{x:.1f}%")
+        df_show["Nota Final Ajustada"] = df_show["Nota_Ajustada"].apply(lambda x: f"{x:.1f}%")
+
+        cols_tabla = ["ALMACEN", "Total_Hallazgos", "Descuento", "Nota Base", "Nota Final Ajustada", "Clasificacion"]
+
+        st.dataframe(
+            df_show[cols_tabla].sort_values(by="Total_Hallazgos", ascending=False),
+            use_container_width=True,
+            hide_index=True
+        )
 
     # ---------------------------------------------------------
     # RESUMEN EJECUTIVO DE PROCESOS AUDITADOS
