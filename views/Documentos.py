@@ -38,6 +38,43 @@ def load_data_documentos():
         return pd.DataFrame()
 
 def render_informe_03():
+    # 🎨 ESTILOS CSS PARA EVITAR TEXTOS CORTADOS Y PROPORCIONAR METRICAS
+    st.markdown(
+        """
+        <style>
+            h1 {
+                font-size: 1.8rem !important;
+                padding-bottom: 0px !important;
+                margin-bottom: 10px !important;
+            }
+            /* Permite salto de línea en los títulos de las tarjetas */
+            [data-testid="stMetricLabel"] {
+                font-size: 0.8rem !important;
+                white-space: normal !important;
+                word-wrap: break-word !important;
+                overflow: visible !important;
+                text-overflow: clip !important;
+                line-height: 1.2 !important;
+            }
+            /* Muestra completos los textos de los almacenes (sin ...) */
+            [data-testid="stMetricValue"] {
+                font-size: 1.05rem !important;
+                white-space: normal !important;
+                word-wrap: break-word !important;
+            }
+            /* Contenedor estético para tarjetas de KPIs */
+            div[data-testid="stMetric"] {
+                background-color: #F8FAFC;
+                padding: 10px 12px;
+                border-radius: 8px;
+                border: 1px solid #E2E8F0;
+                min-height: 90px;
+            }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
     # ---------------------------------------------------------
     # ENCABEZADO Y TEXTOS DE CONTEXTO
     # ---------------------------------------------------------
@@ -125,15 +162,15 @@ def render_informe_03():
     )
 
     kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-    kpi1.metric("Total Facturas Auditadas", f"{total_casos:,}")
-    kpi2.metric("Tipo Doc. Mayor Error", str(top_doc_error))
-    kpi3.metric("Regional con Más Errores", str(top_regional))
-    kpi4.metric("Almacén con Más Errores", str(top_almacen)[:22] + "..." if len(str(top_almacen)) > 22 else str(top_almacen))
+    kpi1.metric("Facturas Auditadas", f"{total_casos:,}")
+    kpi2.metric("Tipo Doc. Principal Error", str(top_doc_error))
+    kpi3.metric("Regional Crítica", str(top_regional))
+    kpi4.metric("Almacén Reincidente", str(top_almacen))
 
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ---------------------------------------------------------
-    # VISUALIZACIONES NUEVAS (DISPERSIÓN CATEGÓRICA Y EMBUDO JERÁRQUICO)
+    # VISUALIZACIONES (DISPERSIÓN CATEGÓRICA Y EMBUDO JERÁRQUICO)
     # ---------------------------------------------------------
     col_chart1, col_chart2 = st.columns([1.1, 0.9])
 
@@ -149,7 +186,6 @@ def render_informe_03():
             )
             top_almacenes["Etiqueta"] = top_almacenes["CODALMACEN"].astype(str) + " - " + top_almacenes["ALMACEN"]
             
-            # Gráfico de dispersión/puntos horizontales estilo Cleveland
             fig_dot = px.scatter(
                 top_almacenes,
                 x="Cantidad",
@@ -163,7 +199,6 @@ def render_informe_03():
                 textposition="middle right"
             )
             
-            # Agregar líneas de soporte para estética limpia
             for _, row in top_almacenes.iterrows():
                 fig_dot.add_shape(
                     type="line",
@@ -190,7 +225,6 @@ def render_informe_03():
             df_regional = df_filtered["REGIONAL"].value_counts().reset_index()
             df_regional.columns = ["REGIONAL", "Cantidad"]
             
-            # Gráfico de Embudo (Funnel)
             fig_funnel = px.funnel(
                 df_regional,
                 x="Cantidad",
