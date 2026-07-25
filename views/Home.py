@@ -64,7 +64,7 @@ def render_home():
     if "categoria_activa" not in st.session_state:
         st.session_state.categoria_activa = "TODAS"
 
-    # 🎨 ESTILOS GENERALES
+    # 🎨 ESTILOS CSS PARA TARJETAS CON FONDO DE COLOR VIVO Y SIN AFECTAR OTROS BOTONES
     st.markdown(
         """
         <style>
@@ -86,6 +86,44 @@ def render_home():
                 padding: 10px 14px;
                 border-radius: 8px;
                 border: 1px solid #E2E8F0;
+            }
+            
+            /* Clases de colores específicos para botones-tarjetas */
+            div.btn-todas > button {
+                background-color: #1E3A8A !important;
+                color: white !important;
+                font-weight: bold !important;
+                border-radius: 8px !important;
+                border: none !important;
+                width: 100% !important;
+                padding: 10px 4px !important;
+            }
+            div.btn-bajo > button {
+                background-color: #10B981 !important;
+                color: white !important;
+                font-weight: bold !important;
+                border-radius: 8px !important;
+                border: none !important;
+                width: 100% !important;
+                padding: 10px 4px !important;
+            }
+            div.btn-medio > button {
+                background-color: #F59E0B !important;
+                color: white !important;
+                font-weight: bold !important;
+                border-radius: 8px !important;
+                border: none !important;
+                width: 100% !important;
+                padding: 10px 4px !important;
+            }
+            div.btn-alto > button {
+                background-color: #EF4444 !important;
+                color: white !important;
+                font-weight: bold !important;
+                border-radius: 8px !important;
+                border: none !important;
+                width: 100% !important;
+                padding: 10px 4px !important;
             }
         </style>
         """,
@@ -274,76 +312,28 @@ def render_home():
         c_medio = len(df_merged[df_merged["Riesgo"] == "🟡 RIESGO MEDIO"])
         c_alto = len(df_merged[df_merged["Riesgo"] == "🔴 RIESGO ALTO"])
 
-        # 🎛️ TARJETAS BOTÓN DE COLORES VIVOS
+        # 🎛️ TARJETAS CON FONDO DE COLOR VIVO COMPLETO
         b1, b2, b3, b4 = st.columns(4)
 
         with b1:
-            st.markdown("""
-                <style>
-                    div.stButton.btn-todas > button {
-                        background-color: #1E3A8A !important;
-                        color: white !important;
-                        font-weight: bold !important;
-                        border-radius: 8px !important;
-                        border: none !important;
-                        padding: 8px !important;
-                    }
-                </style>
-            """, unsafe_allow_html=True)
             st.markdown('<div class="btn-todas">', unsafe_allow_html=True)
             if st.button(f"🌐 TODAS ({len(df_merged)})", key="btn_todas"):
                 st.session_state.categoria_activa = "TODAS"
             st.markdown('</div>', unsafe_allow_html=True)
 
         with b2:
-            st.markdown("""
-                <style>
-                    div.stButton.btn-bajo > button {
-                        background-color: #10B981 !important;
-                        color: white !important;
-                        font-weight: bold !important;
-                        border-radius: 8px !important;
-                        border: none !important;
-                        padding: 8px !important;
-                    }
-                </style>
-            """, unsafe_allow_html=True)
             st.markdown('<div class="btn-bajo">', unsafe_allow_html=True)
             if st.button(f"🟢 RIESGO BAJO ({c_bajo})", key="btn_bajo"):
                 st.session_state.categoria_activa = "🟢 RIESGO BAJO"
             st.markdown('</div>', unsafe_allow_html=True)
 
         with b3:
-            st.markdown("""
-                <style>
-                    div.stButton.btn-medio > button {
-                        background-color: #F59E0B !important;
-                        color: white !important;
-                        font-weight: bold !important;
-                        border-radius: 8px !important;
-                        border: none !important;
-                        padding: 8px !important;
-                    }
-                </style>
-            """, unsafe_allow_html=True)
             st.markdown('<div class="btn-medio">', unsafe_allow_html=True)
             if st.button(f"🟡 RIESGO MEDIO ({c_medio})", key="btn_medio"):
                 st.session_state.categoria_activa = "🟡 RIESGO MEDIO"
             st.markdown('</div>', unsafe_allow_html=True)
 
         with b4:
-            st.markdown("""
-                <style>
-                    div.stButton.btn-alto > button {
-                        background-color: #EF4444 !important;
-                        color: white !important;
-                        font-weight: bold !important;
-                        border-radius: 8px !important;
-                        border: none !important;
-                        padding: 8px !important;
-                    }
-                </style>
-            """, unsafe_allow_html=True)
             st.markdown('<div class="btn-alto">', unsafe_allow_html=True)
             if st.button(f"🔴 RIESGO ALTO ({c_alto})", key="btn_alto"):
                 st.session_state.categoria_activa = "🔴 RIESGO ALTO"
@@ -357,7 +347,10 @@ def render_home():
         else:
             df_filtrada = df_merged.copy()
 
-        # 🛠️ NÚMERO DE HALLAZGOS + PORCENTAJE QUE SE RESTA EN UNA SOLA COLUMNA
+        # Ordenar primero por Total_Hallazgos (evita el KeyError)
+        df_filtrada = df_filtrada.sort_values(by="Total_Hallazgos", ascending=False)
+
+        # Formatear columnas para visualización
         df_filtrada["Total Hallazgos Informes"] = df_filtrada.apply(
             lambda row: f"{row['Total_Hallazgos']} (-{row['Descuento_Pct']:.1f}%)", axis=1
         )
@@ -370,7 +363,7 @@ def render_home():
         cols_finales = ["CODIGO", "ALMACEN", "Total Hallazgos Informes", "Porcentaje Visita", "Porcentaje Final", "Riesgo"]
 
         st.dataframe(
-            df_filtrada[cols_finales].sort_values(by="Total_Hallazgos", ascending=False),
+            df_filtrada[cols_finales],
             use_container_width=True,
             hide_index=True
         )
