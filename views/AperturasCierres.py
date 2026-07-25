@@ -35,6 +35,43 @@ def load_data_aperturas():
         return pd.DataFrame()
 
 def render_informe_05():
+    # 🎨 ESTILOS CSS PARA EVITAR TEXTOS CORTADOS Y PROPORCIONAR METRICAS
+    st.markdown(
+        """
+        <style>
+            h1 {
+                font-size: 1.8rem !important;
+                padding-bottom: 0px !important;
+                margin-bottom: 10px !important;
+            }
+            /* Permite salto de línea en las etiquetas de métricas sin poner puntos suspensivos (...) */
+            [data-testid="stMetricLabel"] {
+                font-size: 0.8rem !important;
+                white-space: normal !important;
+                word-wrap: break-word !important;
+                overflow: visible !important;
+                text-overflow: clip !important;
+                line-height: 1.2 !important;
+            }
+            /* Permite que valores largos (ej: BOGOTA SUR) quepan completos */
+            [data-testid="stMetricValue"] {
+                font-size: 1.05rem !important;
+                white-space: normal !important;
+                word-wrap: break-word !important;
+            }
+            /* Caja contenedora para las tarjetas de KPIs */
+            div[data-testid="stMetric"] {
+                background-color: #F8FAFC;
+                padding: 10px 12px;
+                border-radius: 8px;
+                border: 1px solid #E2E8F0;
+                min-height: 90px;
+            }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
     # ---------------------------------------------------------
     # ENCABEZADO Y TEXTOS DE CONTEXTO
     # ---------------------------------------------------------
@@ -103,7 +140,6 @@ def render_informe_05():
     # ---------------------------------------------------------
     total_registros = len(df_filtered)
     
-    # Contar registros que tienen novedad real de apertura y cierre (distintos a vacío o Sin Novedad)
     total_nov_apertura = df_filtered["NOVEDAD APERTURA"].dropna().apply(lambda x: str(x).strip() != "" and str(x).upper() != "SIN NOVEDAD").sum() if "NOVEDAD APERTURA" in df_filtered.columns else 0
     total_nov_cierre = df_filtered["NOVEDAD CIERRE"].dropna().apply(lambda x: str(x).strip() != "" and str(x).upper() != "SIN NOVEDAD").sum() if "NOVEDAD CIERRE" in df_filtered.columns else 0
     
@@ -117,12 +153,12 @@ def render_informe_05():
     kpi1.metric("Total Días Auditados", f"{total_registros:,}")
     kpi2.metric("Novedades en Apertura", f"{total_nov_apertura:,}")
     kpi3.metric("Novedades en Cierre", f"{total_nov_cierre:,}")
-    kpi4.metric("Regional con Más Eventos", str(top_regional))
+    kpi4.metric("Regional Crítica", str(top_regional))
 
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ---------------------------------------------------------
-    # VISUALIZACIONES NUEVAS (DISPERSIÓN Y DONA DE PARTICIPACIÓN)
+    # VISUALIZACIONES (DISPERSIÓN Y DONA DE PARTICIPACIÓN)
     # ---------------------------------------------------------
     col_chart1, col_chart2 = st.columns([1.1, 0.9])
 
@@ -138,7 +174,6 @@ def render_informe_05():
             )
             top_tiendas["Etiqueta"] = top_tiendas["CODIGO"].astype(str) + " - " + top_tiendas["TIENDA"]
             
-            # Gráfico de puntos estilizado con líneas de conexión
             fig_dot = px.scatter(
                 top_tiendas,
                 x="Cantidad",
@@ -152,7 +187,6 @@ def render_informe_05():
                 textposition="middle right"
             )
             
-            # Agregar líneas de soporte para estética limpia
             for _, row in top_tiendas.iterrows():
                 fig_dot.add_shape(
                     type="line",
@@ -179,7 +213,6 @@ def render_informe_05():
             df_regional = df_filtered["REGIONAL"].value_counts().reset_index()
             df_regional.columns = ["REGIONAL", "Cantidad"]
             
-            # Gráfico de Dona Ejecutivo con Paleta Azul Gradiante
             fig_donut = px.pie(
                 df_regional,
                 names="REGIONAL",
@@ -202,11 +235,10 @@ def render_informe_05():
             st.info("Sin datos para generar la gráfica.")
 
     # ---------------------------------------------------------
-    # SEGUNDA FILA: TENDENCIA MENSUAL (AGRUPADO ESTRICTAMENTE POR MES)
+    # SEGUNDA FILA: TENDENCIA MENSUAL
     # ---------------------------------------------------------
     st.markdown("##### 📈 Comportamiento Mensual de Novedades de Horario")
     if "AÑO_MES" in df_filtered.columns and not df_filtered.empty:
-        # Agrupar por mes en formato texto
         df_trend = (
             df_filtered.groupby(df_filtered["AÑO_MES"].astype(str))
             .size()
@@ -223,7 +255,7 @@ def render_informe_05():
             color_discrete_sequence=[COLOR_SECONDARY]
         )
         fig_area.update_traces(textposition="top center")
-        fig_area.update_xaxes(type="category")  # Forzar formato categórico mensual
+        fig_area.update_xaxes(type="category")
         fig_area.update_layout(
             xaxis_title="Mes de Registro",
             yaxis_title="Nº de Registros",
