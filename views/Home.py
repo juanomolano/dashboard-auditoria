@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# 🚨 IMPORTANTE: Importar todas las funciones de datos que usa Home.py
+# 🚨 IMPORTANTE: Importaciones con los nombres exactos de funciones
 from views.Obsequios import load_data_obsequios
 from views.Anulaciones import load_data_anulaciones
 from views.Documentos import load_data_documentos
@@ -13,21 +13,28 @@ from views.ConciliacionLinkPago import load_data_links
 from views.ConciliacionAddi import load_data_addi
 
 def render_home():
-    # Estilos CSS para compactar el título y las tarjetas
+    # Estilos CSS para compactar el título, ajustar métricas y evitar que se corten textos
     st.markdown(
         """
         <style>
             h1 {
                 font-size: 1.8rem !important;
                 padding-bottom: 0px !important;
+                margin-bottom: 10px !important;
             }
             [data-testid="stMetricValue"] {
-                font-size: 1.15rem !important;
+                font-size: 1.1rem !important;
                 white-space: normal !important;
                 word-wrap: break-word !important;
             }
             [data-testid="stMetricLabel"] {
                 font-size: 0.85rem !important;
+            }
+            div[data-testid="stMetric"] {
+                background-color: #F8FAFC;
+                padding: 10px 14px;
+                border-radius: 8px;
+                border: 1px solid #E2E8F0;
             }
         </style>
         """,
@@ -47,7 +54,6 @@ def render_home():
         unsafe_allow_html=True
     )
 
-
     # ---------------------------------------------------------
     # CARGA Y CONSOLIDACIÓN DE DATOS MULTI-MÓDULO
     # ---------------------------------------------------------
@@ -57,8 +63,8 @@ def render_home():
         df_m3 = load_data_documentos()
         df_m4 = load_data_tarifas()
         df_m5 = load_data_aperturas()
-        df_m6 = load_data_conciliacion()
-        df_m7 = load_data_link_pago()
+        df_m6 = load_data_tarjetas()
+        df_m7 = load_data_links()
         df_m8 = load_data_addi()
 
     # Recuento por Módulo
@@ -91,7 +97,6 @@ def render_home():
             reg_list.append(temp)
             
     df_reg_all = pd.concat(reg_list, ignore_index=True) if reg_list else pd.DataFrame()
-    
     top_regional_global = df_reg_all["REGIONAL"].value_counts().index[0] if not df_reg_all.empty else "N/A"
 
     # Consolidador de Almacenes
@@ -111,7 +116,7 @@ def render_home():
     kpi1.metric("Total Hallazgos Auditados", f"{total_inconsistencias:,}")
     kpi2.metric("Saldo en Contra Recuperable", f"$ {saldo_tarifas:,.0f}")
     kpi3.metric("Regional de Mayor Atención", str(top_regional_global))
-    kpi4.metric("Almacén Más Reincidente", str(top_almacen_global)[:22] + "..." if len(str(top_almacen_global)) > 22 else str(top_almacen_global))
+    kpi4.metric("Almacén Más Reincidente", str(top_almacen_global))
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -148,7 +153,6 @@ def render_home():
     with col_chart2:
         st.markdown("##### 🗺️ Mapa de Calor: Hallazgos por Regional y Módulo")
         if not df_reg_all.empty:
-            # Crear matriz cruzada de Regional vs Módulo
             df_matrix = pd.crosstab(df_reg_all["REGIONAL"], df_reg_all["Modulo"])
             
             fig_heatmap = px.imshow(
@@ -157,7 +161,7 @@ def render_home():
                 x=df_matrix.columns,
                 y=df_matrix.index,
                 color_continuous_scale="Blues",
-                text_auto=True  # Muestra el número exacto dentro de cada casilla
+                text_auto=True
             )
             fig_heatmap.update_layout(
                 margin=dict(l=0, r=0, t=20, b=0),
