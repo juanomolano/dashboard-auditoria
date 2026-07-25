@@ -2,15 +2,35 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# 🚨 IMPORTANTE: Importaciones con los nombres exactos de funciones
+# ---------------------------------------------------------
+# IMPORTACIONES SEGURAS PARA EVITAR IMPORTERROR
+# ---------------------------------------------------------
 from views.Obsequios import load_data_obsequios
 from views.Anulaciones import load_data_anulaciones
 from views.Documentos import load_data_documentos
 from views.Tarifas import load_data_tarifas
 from views.AperturasCierres import load_data_aperturas
-from views.ConciliacionTarjetas import load_data_tarjetas
-from views.ConciliacionLinkPago import load_data_links
+
+# Intento de importación flexible para Tarjetas
+try:
+    from views.ConciliacionTarjetas import load_data_tarjetas as load_data_m6
+except ImportError:
+    try:
+        from views.ConciliacionTarjetas import load_data_conciliacion as load_data_m6
+    except ImportError:
+        load_data_m6 = lambda: pd.DataFrame()
+
+# Intento de importación flexible para Link Pago
+try:
+    from views.ConciliacionLinkPago import load_data_links as load_data_m7
+except ImportError:
+    try:
+        from views.ConciliacionLinkPago import load_data_link_pago as load_data_m7
+    except ImportError:
+        load_data_m7 = lambda: pd.DataFrame()
+
 from views.ConciliacionAddi import load_data_addi
+
 
 def render_home():
     # Estilos CSS para compactar el título, ajustar métricas y evitar que se corten textos
@@ -63,26 +83,26 @@ def render_home():
         df_m3 = load_data_documentos()
         df_m4 = load_data_tarifas()
         df_m5 = load_data_aperturas()
-        df_m6 = load_data_tarjetas()
-        df_m7 = load_data_links()
+        df_m6 = load_data_m6()
+        df_m7 = load_data_m7()
         df_m8 = load_data_addi()
 
     # Recuento por Módulo
     volumenes = {
-        "Obsequios $1": len(df_m1),
-        "Anulaciones Forma Pago": len(df_m2),
-        "Tipo Documento": len(df_m3),
-        "Uso de Tarifas": len(df_m4),
-        "Apertura/Cierre Tiendas": len(df_m5),
-        "Datáfonos Tarjetas": len(df_m6),
-        "Links Mercado Pago": len(df_m7),
-        "Créditos Addi": len(df_m8)
+        "Obsequios $1": len(df_m1) if isinstance(df_m1, pd.DataFrame) else 0,
+        "Anulaciones Forma Pago": len(df_m2) if isinstance(df_m2, pd.DataFrame) else 0,
+        "Tipo Documento": len(df_m3) if isinstance(df_m3, pd.DataFrame) else 0,
+        "Uso de Tarifas": len(df_m4) if isinstance(df_m4, pd.DataFrame) else 0,
+        "Apertura/Cierre Tiendas": len(df_m5) if isinstance(df_m5, pd.DataFrame) else 0,
+        "Datáfonos Tarjetas": len(df_m6) if isinstance(df_m6, pd.DataFrame) else 0,
+        "Links Mercado Pago": len(df_m7) if isinstance(df_m7, pd.DataFrame) else 0,
+        "Créditos Addi": len(df_m8) if isinstance(df_m8, pd.DataFrame) else 0
     }
     
     total_inconsistencias = sum(volumenes.values())
     
     # Impacto Financiero
-    saldo_tarifas = df_m4["SALDO_NUMERICO"].sum() if "SALDO_NUMERICO" in df_m4.columns and not df_m4.empty else 0
+    saldo_tarifas = df_m4["SALDO_NUMERICO"].sum() if isinstance(df_m4, pd.DataFrame) and "SALDO_NUMERICO" in df_m4.columns and not df_m4.empty else 0
 
     # Consolidador de Regionales
     reg_list = []
@@ -91,7 +111,7 @@ def render_home():
         ("Tarifas", df_m4), ("Aperturas", df_m5), ("Conciliacion", df_m6),
         ("LinkPago", df_m7), ("Addi", df_m8)
     ]:
-        if not df_mod.empty and "REGIONAL" in df_mod.columns:
+        if isinstance(df_mod, pd.DataFrame) and not df_mod.empty and "REGIONAL" in df_mod.columns:
             temp = df_mod[["REGIONAL"]].dropna().copy()
             temp["Modulo"] = name
             reg_list.append(temp)
@@ -102,9 +122,10 @@ def render_home():
     # Consolidador de Almacenes
     alm_list = []
     for df_mod in [df_m1, df_m2, df_m3, df_m4, df_m5, df_m6, df_m7, df_m8]:
-        col_alm = "ALMACEN" if "ALMACEN" in df_mod.columns else ("TIENDA" if "TIENDA" in df_mod.columns else None)
-        if not df_mod.empty and col_alm:
-            alm_list.append(df_mod[col_alm].dropna())
+        if isinstance(df_mod, pd.DataFrame) and not df_mod.empty:
+            col_alm = "ALMACEN" if "ALMACEN" in df_mod.columns else ("TIENDA" if "TIENDA" in df_mod.columns else None)
+            if col_alm:
+                alm_list.append(df_mod[col_alm].dropna())
             
     df_alm_all = pd.concat(alm_list, ignore_index=True) if alm_list else pd.Series()
     top_almacen_global = df_alm_all.value_counts().index[0] if not df_alm_all.empty else "N/A"
