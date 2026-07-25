@@ -61,10 +61,7 @@ def load_data_bi_visitas():
 
 
 def render_home():
-    if "categoria_activa" not in st.session_state:
-        st.session_state.categoria_activa = "TODAS"
-
-    # 🎨 ESTILOS CSS INYECTADOS DIRECTAMENTE A LOS BOTONES POR SU UBICACIÓN EN COLUMNAS
+    # 🎨 ESTILOS CSS GENERALES Y PARA TARJETAS DE COLORES
     st.markdown(
         """
         <style>
@@ -88,37 +85,21 @@ def render_home():
                 border: 1px solid #E2E8F0;
             }
             
-            /* INYECCIÓN DE COLORES DIRECTA A LOS BOTONES DEL SEMÁFORO */
-            div[data-testid="stColumn"]:nth-child(1) button {
-                background-color: #1E3A8A !important;
-                color: #FFFFFF !important;
-                border: none !important;
-                font-weight: bold !important;
+            /* Tarjetas visuales de color sólido */
+            .card-riesgo {
+                padding: 12px 10px;
+                border-radius: 8px;
+                text-align: center;
+                color: white;
+                font-weight: bold;
+                font-size: 0.85rem;
+                margin-bottom: 10px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             }
-            div[data-testid="stColumn"]:nth-child(2) button {
-                background-color: #10B981 !important;
-                color: #FFFFFF !important;
-                border: none !important;
-                font-weight: bold !important;
-            }
-            div[data-testid="stColumn"]:nth-child(3) button {
-                background-color: #F59E0B !important;
-                color: #FFFFFF !important;
-                border: none !important;
-                font-weight: bold !important;
-            }
-            div[data-testid="stColumn"]:nth-child(4) button {
-                background-color: #EF4444 !important;
-                color: #FFFFFF !important;
-                border: none !important;
-                font-weight: bold !important;
-            }
-
-            /* Mantiene el texto en blanco al pasar el mouse o al hacer clic */
-            div[data-testid="stColumn"] button p {
-                color: #FFFFFF !important;
-                font-weight: bold !important;
-            }
+            .bg-todas { background-color: #1E3A8A; }
+            .bg-bajo { background-color: #10B981; }
+            .bg-medio { background-color: #F59E0B; }
+            .bg-alto { background-color: #EF4444; }
         </style>
         """,
         unsafe_allow_html=True
@@ -306,30 +287,27 @@ def render_home():
         c_medio = len(df_merged[df_merged["Riesgo"] == "🟡 RIESGO MEDIO"])
         c_alto = len(df_merged[df_merged["Riesgo"] == "🔴 RIESGO ALTO"])
 
-        # 🎛️ TARJETAS CON FONDO DE COLOR IMPUESTO POR POSICIÓN DE COLUMNA
-        b1, b2, b3, b4 = st.columns(4)
+        # 🎛️ TARJETAS DE COLORES VIVOS
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            st.markdown(f'<div class="card-riesgo bg-todas">🌐 TODAS<br><b style="font-size:16px;">{len(df_merged)}</b> Tiendas</div>', unsafe_allow_html=True)
+        with c2:
+            st.markdown(f'<div class="card-riesgo bg-bajo">🟢 RIESGO BAJO<br><b style="font-size:16px;">{c_bajo}</b> Tiendas</div>', unsafe_allow_html=True)
+        with c3:
+            st.markdown(f'<div class="card-riesgo bg-medio">🟡 RIESGO MEDIO<br><b style="font-size:16px;">{c_medio}</b> Tiendas</div>', unsafe_allow_html=True)
+        with c4:
+            st.markdown(f'<div class="card-riesgo bg-alto">🔴 RIESGO ALTO<br><b style="font-size:16px;">{c_alto}</b> Tiendas</div>', unsafe_allow_html=True)
 
-        with b1:
-            if st.button(f"🌐 TODAS ({len(df_merged)})", key="btn_todas"):
-                st.session_state.categoria_activa = "TODAS"
-
-        with b2:
-            if st.button(f"🟢 RIESGO BAJO ({c_bajo})", key="btn_bajo"):
-                st.session_state.categoria_activa = "🟢 RIESGO BAJO"
-
-        with b3:
-            if st.button(f"🟡 RIESGO MEDIO ({c_medio})", key="btn_medio"):
-                st.session_state.categoria_activa = "🟡 RIESGO MEDIO"
-
-        with b4:
-            if st.button(f"🔴 RIESGO ALTO ({c_alto})", key="btn_alto"):
-                st.session_state.categoria_activa = "🔴 RIESGO ALTO"
-
-        st.caption(f"Filtro activo: **{st.session_state.categoria_activa}**")
+        # SELECTOR DE FILTRO
+        filtro_seleccionado = st.radio(
+            "Selecciona el nivel de riesgo a consultar en la tabla:",
+            options=["TODAS", "🟢 RIESGO BAJO", "🟡 RIESGO MEDIO", "🔴 RIESGO ALTO"],
+            horizontal=True
+        )
 
         # Aplicar el filtro según la selección
-        if st.session_state.categoria_activa != "TODAS":
-            df_filtrada = df_merged[df_merged["Riesgo"] == st.session_state.categoria_activa].copy()
+        if filtro_seleccionado != "TODAS":
+            df_filtrada = df_merged[df_merged["Riesgo"] == filtro_seleccionado].copy()
         else:
             df_filtrada = df_merged.copy()
 
