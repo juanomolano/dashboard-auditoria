@@ -64,7 +64,7 @@ def render_home():
     if "categoria_activa" not in st.session_state:
         st.session_state.categoria_activa = "TODAS"
 
-    # 🎨 ESTILOS CSS CON INYECCIÓN DIRECTA PARA RENDERIZAR FONDOS DE COLOR VIVOS
+    # 🎨 ESTILOS CSS INYECTADOS DIRECTAMENTE A LOS BOTONES POR SU UBICACIÓN EN COLUMNAS
     st.markdown(
         """
         <style>
@@ -88,29 +88,35 @@ def render_home():
                 border: 1px solid #E2E8F0;
             }
             
-            /* FORZADO DE FONDO Y TEXTO BLANCO EN BOTONES DE TARJETAS */
-            div.btn-todas button[data-testid="stBaseButton-secondary"] {
+            /* INYECCIÓN DE COLORES DIRECTA A LOS BOTONES DEL SEMÁFORO */
+            div[data-testid="stColumn"]:nth-child(1) button {
                 background-color: #1E3A8A !important;
                 color: #FFFFFF !important;
                 border: none !important;
                 font-weight: bold !important;
             }
-            div.btn-bajo button[data-testid="stBaseButton-secondary"] {
+            div[data-testid="stColumn"]:nth-child(2) button {
                 background-color: #10B981 !important;
                 color: #FFFFFF !important;
                 border: none !important;
                 font-weight: bold !important;
             }
-            div.btn-medio button[data-testid="stBaseButton-secondary"] {
+            div[data-testid="stColumn"]:nth-child(3) button {
                 background-color: #F59E0B !important;
                 color: #FFFFFF !important;
                 border: none !important;
                 font-weight: bold !important;
             }
-            div.btn-alto button[data-testid="stBaseButton-secondary"] {
+            div[data-testid="stColumn"]:nth-child(4) button {
                 background-color: #EF4444 !important;
                 color: #FFFFFF !important;
                 border: none !important;
+                font-weight: bold !important;
+            }
+
+            /* Mantiene el texto en blanco al pasar el mouse o al hacer clic */
+            div[data-testid="stColumn"] button p {
+                color: #FFFFFF !important;
                 font-weight: bold !important;
             }
         </style>
@@ -300,32 +306,24 @@ def render_home():
         c_medio = len(df_merged[df_merged["Riesgo"] == "🟡 RIESGO MEDIO"])
         c_alto = len(df_merged[df_merged["Riesgo"] == "🔴 RIESGO ALTO"])
 
-        # 🎛️ TARJETAS CON COLORES DE FONDO VIVOS
+        # 🎛️ TARJETAS CON FONDO DE COLOR IMPUESTO POR POSICIÓN DE COLUMNA
         b1, b2, b3, b4 = st.columns(4)
 
         with b1:
-            st.markdown('<div class="btn-todas">', unsafe_allow_html=True)
             if st.button(f"🌐 TODAS ({len(df_merged)})", key="btn_todas"):
                 st.session_state.categoria_activa = "TODAS"
-            st.markdown('</div>', unsafe_allow_html=True)
 
         with b2:
-            st.markdown('<div class="btn-bajo">', unsafe_allow_html=True)
             if st.button(f"🟢 RIESGO BAJO ({c_bajo})", key="btn_bajo"):
                 st.session_state.categoria_activa = "🟢 RIESGO BAJO"
-            st.markdown('</div>', unsafe_allow_html=True)
 
         with b3:
-            st.markdown('<div class="btn-medio">', unsafe_allow_html=True)
             if st.button(f"🟡 RIESGO MEDIO ({c_medio})", key="btn_medio"):
                 st.session_state.categoria_activa = "🟡 RIESGO MEDIO"
-            st.markdown('</div>', unsafe_allow_html=True)
 
         with b4:
-            st.markdown('<div class="btn-alto">', unsafe_allow_html=True)
             if st.button(f"🔴 RIESGO ALTO ({c_alto})", key="btn_alto"):
                 st.session_state.categoria_activa = "🔴 RIESGO ALTO"
-            st.markdown('</div>', unsafe_allow_html=True)
 
         st.caption(f"Filtro activo: **{st.session_state.categoria_activa}**")
 
