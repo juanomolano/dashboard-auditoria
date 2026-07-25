@@ -64,7 +64,7 @@ def render_home():
     if "categoria_activa" not in st.session_state:
         st.session_state.categoria_activa = "TODAS"
 
-    # 🎨 ESTILOS CSS COMPACTOS Y EXCLUSIVOS PARA TARJETAS BOTÓN
+    # 🎨 ESTILOS GENERALES
     st.markdown(
         """
         <style>
@@ -86,31 +86,6 @@ def render_home():
                 padding: 10px 14px;
                 border-radius: 8px;
                 border: 1px solid #E2E8F0;
-            }
-            
-            /* Estilo compacto para los botones del filtro */
-            div.row-widget.stButton > button {
-                width: 100%;
-                border-radius: 8px;
-                padding: 6px 8px !important;
-                font-size: 0.82rem !important;
-                font-weight: bold;
-                border: 1px solid #CBD5E1;
-                color: white !important;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-                min-height: 55px !important;
-                line-height: 1.2 !important;
-            }
-            
-            /* Colores compactos específicos */
-            div.btn-todas > button { background-color: #1E3A8A !important; }
-            div.btn-bajo > button { background-color: #10B981 !important; }
-            div.btn-medio > button { background-color: #F59E0B !important; }
-            div.btn-alto > button { background-color: #EF4444 !important; }
-
-            div.row-widget.stButton > button:hover {
-                filter: brightness(0.92);
-                transform: translateY(-1px);
             }
         </style>
         """,
@@ -293,34 +268,82 @@ def render_home():
             else:
                 return "🔴 RIESGO ALTO"
 
-        df_merged["Clasificacion"] = df_merged["Nota_Ajustada"].apply(clasificar_riesgo)
+        df_merged["Riesgo"] = df_merged["Nota_Ajustada"].apply(clasificar_riesgo)
 
-        c_bajo = len(df_merged[df_merged["Clasificacion"] == "🟢 RIESGO BAJO"])
-        c_medio = len(df_merged[df_merged["Clasificacion"] == "🟡 RIESGO MEDIO"])
-        c_alto = len(df_merged[df_merged["Clasificacion"] == "🔴 RIESGO ALTO"])
+        c_bajo = len(df_merged[df_merged["Riesgo"] == "🟢 RIESGO BAJO"])
+        c_medio = len(df_merged[df_merged["Riesgo"] == "🟡 RIESGO MEDIO"])
+        c_alto = len(df_merged[df_merged["Riesgo"] == "🔴 RIESGO ALTO"])
 
-        # 🎛️ FILTROS/BOTONES COMPACTOS DE RIESGO
+        # 🎛️ TARJETAS BOTÓN DE COLORES VIVOS (FONDO DE COLOR CON CEBORRA DE CSS)
         b1, b2, b3, b4 = st.columns(4)
 
         with b1:
+            st.markdown("""
+                <style>
+                    div.stButton.btn-todas > button {
+                        background-color: #1E3A8A !important;
+                        color: white !important;
+                        font-weight: bold !important;
+                        border-radius: 8px !important;
+                        border: none !important;
+                        padding: 8px !important;
+                    }
+                </style>
+            """, unsafe_allow_html=True)
             st.markdown('<div class="btn-todas">', unsafe_allow_html=True)
             if st.button(f"🌐 TODAS ({len(df_merged)})", key="btn_todas"):
                 st.session_state.categoria_activa = "TODAS"
             st.markdown('</div>', unsafe_allow_html=True)
 
         with b2:
+            st.markdown("""
+                <style>
+                    div.stButton.btn-bajo > button {
+                        background-color: #10B981 !important;
+                        color: white !important;
+                        font-weight: bold !important;
+                        border-radius: 8px !important;
+                        border: none !important;
+                        padding: 8px !important;
+                    }
+                </style>
+            """, unsafe_allow_html=True)
             st.markdown('<div class="btn-bajo">', unsafe_allow_html=True)
             if st.button(f"🟢 RIESGO BAJO ({c_bajo})", key="btn_bajo"):
                 st.session_state.categoria_activa = "🟢 RIESGO BAJO"
             st.markdown('</div>', unsafe_allow_html=True)
 
         with b3:
+            st.markdown("""
+                <style>
+                    div.stButton.btn-medio > button {
+                        background-color: #F59E0B !important;
+                        color: white !important;
+                        font-weight: bold !important;
+                        border-radius: 8px !important;
+                        border: none !important;
+                        padding: 8px !important;
+                    }
+                </style>
+            """, unsafe_allow_html=True)
             st.markdown('<div class="btn-medio">', unsafe_allow_html=True)
             if st.button(f"🟡 RIESGO MEDIO ({c_medio})", key="btn_medio"):
                 st.session_state.categoria_activa = "🟡 RIESGO MEDIO"
             st.markdown('</div>', unsafe_allow_html=True)
 
         with b4:
+            st.markdown("""
+                <style>
+                    div.stButton.btn-alto > button {
+                        background-color: #EF4444 !important;
+                        color: white !important;
+                        font-weight: bold !important;
+                        border-radius: 8px !important;
+                        border: none !important;
+                        padding: 8px !important;
+                    }
+                </style>
+            """, unsafe_allow_html=True)
             st.markdown('<div class="btn-alto">', unsafe_allow_html=True)
             if st.button(f"🔴 RIESGO ALTO ({c_alto})", key="btn_alto"):
                 st.session_state.categoria_activa = "🔴 RIESGO ALTO"
@@ -330,21 +353,21 @@ def render_home():
 
         # Aplicar el filtro según la selección
         if st.session_state.categoria_activa != "TODAS":
-            df_filtrada = df_merged[df_merged["Clasificacion"] == st.session_state.categoria_activa].copy()
+            df_filtrada = df_merged[df_merged["Riesgo"] == st.session_state.categoria_activa].copy()
         else:
             df_filtrada = df_merged.copy()
 
-        # Formatear columnas
-        df_filtrada["Porcentaje Visita (BI)"] = df_filtrada["PROMEDIO_VISITA_BI"].apply(
+        # Nombres ajustados para las columnas de la tabla
+        df_filtrada["Porcentaje Visita"] = df_filtrada["PROMEDIO_VISITA_BI"].apply(
             lambda x: f"{x:.1f}%" if x > 0 else "0.0% (Sin Visita)"
         )
-        df_filtrada["Porcentaje Final Ajustado"] = df_filtrada["Nota_Ajustada"].apply(lambda x: f"{x:.1f}%")
-        df_filtrada["Total Hallazgos Auditados"] = df_filtrada["Total_Hallazgos"]
+        df_filtrada["Porcentaje Final"] = df_filtrada["Nota_Ajustada"].apply(lambda x: f"{x:.1f}%")
+        df_filtrada["Total Hallazgos Informes"] = df_filtrada["Total_Hallazgos"]
 
-        cols_finales = ["CODIGO", "ALMACEN", "Total Hallazgos Auditados", "Porcentaje Visita (BI)", "Porcentaje Final Ajustado", "Clasificacion"]
+        cols_finales = ["CODIGO", "ALMACEN", "Total Hallazgos Informes", "Porcentaje Visita", "Porcentaje Final", "Riesgo"]
 
         st.dataframe(
-            df_filtrada[cols_finales].sort_values(by="Total Hallazgos Auditados", ascending=False),
+            df_filtrada[cols_finales].sort_values(by="Total Hallazgos Informes", ascending=False),
             use_container_width=True,
             hide_index=True
         )
