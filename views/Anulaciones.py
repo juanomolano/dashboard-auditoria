@@ -35,6 +35,43 @@ def load_data_anulaciones():
         return pd.DataFrame()
 
 def render_informe_02():
+    # 🎨 ESTILOS CSS PARA EVITAR TEXTOS CORTADOS Y AJUSTAR TAMAÑOS EN KPIS
+    st.markdown(
+        """
+        <style>
+            h1 {
+                font-size: 1.8rem !important;
+                padding-bottom: 0px !important;
+                margin-bottom: 10px !important;
+            }
+            /* Permite salto de línea en las etiquetas de métricas sin poner puntos suspensivos (...) */
+            [data-testid="stMetricLabel"] {
+                font-size: 0.8rem !important;
+                white-space: normal !important;
+                word-wrap: break-word !important;
+                overflow: visible !important;
+                text-overflow: clip !important;
+                line-height: 1.2 !important;
+            }
+            /* Permite que valores largos (ej: descripciones de motivos) quepan completos */
+            [data-testid="stMetricValue"] {
+                font-size: 1.05rem !important;
+                white-space: normal !important;
+                word-wrap: break-word !important;
+            }
+            /* Caja contenedora para las tarjetas de KPIs */
+            div[data-testid="stMetric"] {
+                background-color: #F8FAFC;
+                padding: 10px 12px;
+                border-radius: 8px;
+                border: 1px solid #E2E8F0;
+                min-height: 90px;
+            }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
     # ---------------------------------------------------------
     # ENCABEZADO Y TEXTOS DE CONTEXTO
     # ---------------------------------------------------------
@@ -119,8 +156,8 @@ def render_informe_02():
     kpi1, kpi2, kpi3, kpi4 = st.columns(4)
     kpi1.metric("Total Anulaciones Registradas", f"{total_anulaciones:,}")
     kpi2.metric("Almacenes con Anulaciones", f"{total_almacenes:,}")
-    kpi3.metric("Regional con Más Casos", top_regional)
-    kpi4.metric("Motivo Más Frecuente", str(top_motivo)[:20] + "..." if len(str(top_motivo)) > 20 else str(top_motivo))
+    kpi3.metric("Regional Crítica", str(top_regional))
+    kpi4.metric("Motivo Más Frecuente", str(top_motivo))
 
     st.markdown("<br>", unsafe_allow_html=True)
 
