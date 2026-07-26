@@ -61,7 +61,7 @@ def load_data_bi_visitas():
 
 
 def render_home():
-    # 🎨 ESTILOS CSS GENERALES Y PARA TARJETAS DE COLORES
+    # 🎨 ESTILOS GENERALES Y ESTILIZACIÓN DE SELECTOR EN TARJETAS
     st.markdown(
         """
         <style>
@@ -85,21 +85,47 @@ def render_home():
                 border: 1px solid #E2E8F0;
             }
             
-            /* Tarjetas visuales de color sólido */
-            .card-riesgo {
-                padding: 12px 10px;
-                border-radius: 8px;
-                text-align: center;
-                color: white;
-                font-weight: bold;
-                font-size: 0.85rem;
-                margin-bottom: 10px;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            /* Ocultar los círculos del radio button */
+            div[data-testid="stRadio"] div[role="radiogroup"] label div:first-child {
+                display: none !important;
             }
-            .bg-todas { background-color: #1E3A8A; }
-            .bg-bajo { background-color: #10B981; }
-            .bg-medio { background-color: #F59E0B; }
-            .bg-alto { background-color: #EF4444; }
+            
+            /* Transformar cada opción en tarjeta */
+            div[data-testid="stRadio"] div[role="radiogroup"] label {
+                border-radius: 8px !important;
+                padding: 12px 18px !important;
+                margin-right: 8px !important;
+                font-weight: bold !important;
+                color: white !important;
+                text-align: center !important;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+                cursor: pointer !important;
+                transition: transform 0.15s ease !important;
+            }
+            
+            div[data-testid="stRadio"] div[role="radiogroup"] label:hover {
+                transform: scale(1.02) !important;
+            }
+
+            /* Asignar colores de riesgo a cada tarjeta */
+            div[data-testid="stRadio"] div[role="radiogroup"] label:nth-of-type(1) {
+                background-color: #1E3A8A !important;
+            }
+            div[data-testid="stRadio"] div[role="radiogroup"] label:nth-of-type(2) {
+                background-color: #10B981 !important;
+            }
+            div[data-testid="stRadio"] div[role="radiogroup"] label:nth-of-type(3) {
+                background-color: #F59E0B !important;
+            }
+            div[data-testid="stRadio"] div[role="radiogroup"] label:nth-of-type(4) {
+                background-color: #EF4444 !important;
+            }
+
+            /* Resaltado de la tarjeta activa */
+            div[data-testid="stRadio"] div[role="radiogroup"] label[data-checked="true"] {
+                outline: 3px solid #000000 !important;
+                outline-offset: 1px !important;
+            }
         </style>
         """,
         unsafe_allow_html=True
@@ -287,27 +313,26 @@ def render_home():
         c_medio = len(df_merged[df_merged["Riesgo"] == "🟡 RIESGO MEDIO"])
         c_alto = len(df_merged[df_merged["Riesgo"] == "🔴 RIESGO ALTO"])
 
-        # 🎛️ TARJETAS DE COLORES VIVOS
-        c1, c2, c3, c4 = st.columns(4)
-        with c1:
-            st.markdown(f'<div class="card-riesgo bg-todas">🌐 TODAS<br><b style="font-size:16px;">{len(df_merged)}</b> Tiendas</div>', unsafe_allow_html=True)
-        with c2:
-            st.markdown(f'<div class="card-riesgo bg-bajo">🟢 RIESGO BAJO<br><b style="font-size:16px;">{c_bajo}</b> Tiendas</div>', unsafe_allow_html=True)
-        with c3:
-            st.markdown(f'<div class="card-riesgo bg-medio">🟡 RIESGO MEDIO<br><b style="font-size:16px;">{c_medio}</b> Tiendas</div>', unsafe_allow_html=True)
-        with c4:
-            st.markdown(f'<div class="card-riesgo bg-alto">🔴 RIESGO ALTO<br><b style="font-size:16px;">{c_alto}</b> Tiendas</div>', unsafe_allow_html=True)
+        # 🎛️ TARJETAS SELECCIONABLES INTEGRADAS
+        opciones_tarjeta = {
+            f"🌐 TODAS ({len(df_merged)} Tiendas)": "TODAS",
+            f"🟢 RIESGO BAJO ({c_bajo} Tiendas)": "🟢 RIESGO BAJO",
+            f"🟡 RIESGO MEDIO ({c_medio} Tiendas)": "🟡 RIESGO MEDIO",
+            f"🔴 RIESGO ALTO ({c_alto} Tiendas)": "🔴 RIESGO ALTO"
+        }
 
-        # SELECTOR DE FILTRO
-        filtro_seleccionado = st.radio(
-            "Selecciona el nivel de riesgo a consultar en la tabla:",
-            options=["TODAS", "🟢 RIESGO BAJO", "🟡 RIESGO MEDIO", "🔴 RIESGO ALTO"],
-            horizontal=True
+        seleccion = st.radio(
+            "Filtro de Riesgo",
+            options=list(opciones_tarjeta.keys()),
+            horizontal=True,
+            label_visibility="collapsed"
         )
 
-        # Aplicar el filtro según la selección
-        if filtro_seleccionado != "TODAS":
-            df_filtrada = df_merged[df_merged["Riesgo"] == filtro_seleccionado].copy()
+        filtro_activo = opciones_tarjeta[seleccion]
+
+        # Aplicar el filtro según la tarjeta seleccionada
+        if filtro_activo != "TODAS":
+            df_filtrada = df_merged[df_merged["Riesgo"] == filtro_activo].copy()
         else:
             df_filtrada = df_merged.copy()
 
