@@ -61,7 +61,10 @@ def load_data_bi_visitas():
 
 
 def render_home():
-    # 🎨 ESTILOS CSS GENERALES Y PARA LAS CÁPSULAS DE FILTRO
+    if "categoria_activa" not in st.session_state:
+        st.session_state.categoria_activa = "TODAS"
+
+    # 🎨 ESTILOS CSS CON INYECCIÓN DIRECTA PARA RENDERIZAR FONDOS DE COLOR VIVOS
     st.markdown(
         """
         <style>
@@ -85,35 +88,30 @@ def render_home():
                 border: 1px solid #E2E8F0;
             }
             
-            /* Estilo cápsula sobria para el radio button horizontal */
-            div[data-testid="stRadio"] div[role="radiogroup"] label div:first-child {
-                display: none !important;
+            /* FORZADO DE FONDO Y TEXTO BLANCO EN BOTONES DE TARJETAS */
+            div.btn-todas button[data-testid="stBaseButton-secondary"] {
+                background-color: #1E3A8A !important;
+                color: #FFFFFF !important;
+                border: none !important;
+                font-weight: bold !important;
             }
-            
-            div[data-testid="stRadio"] div[role="radiogroup"] label {
-                border-radius: 8px !important;
-                padding: 8px 16px !important;
-                margin-right: 8px !important;
-                font-weight: 500 !important;
-                color: #334155 !important;
-                background-color: #FFFFFF !important;
-                border: 1px solid #CBD5E1 !important;
-                text-align: center !important;
-                cursor: pointer !important;
-                box-shadow: 0 1px 2px rgba(0,0,0,0.03) !important;
-                transition: all 0.15s ease !important;
+            div.btn-bajo button[data-testid="stBaseButton-secondary"] {
+                background-color: #10B981 !important;
+                color: #FFFFFF !important;
+                border: none !important;
+                font-weight: bold !important;
             }
-            
-            div[data-testid="stRadio"] div[role="radiogroup"] label:hover {
-                border-color: #94A3B8 !important;
-                background-color: #F8FAFC !important;
+            div.btn-medio button[data-testid="stBaseButton-secondary"] {
+                background-color: #F59E0B !important;
+                color: #FFFFFF !important;
+                border: none !important;
+                font-weight: bold !important;
             }
-
-            /* Resaltado suave al seleccionar la tarjeta */
-            div[data-testid="stRadio"] div[role="radiogroup"] label[data-checked="true"] {
-                border-color: #64748B !important;
-                background-color: #F1F5F9 !important;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
+            div.btn-alto button[data-testid="stBaseButton-secondary"] {
+                background-color: #EF4444 !important;
+                color: #FFFFFF !important;
+                border: none !important;
+                font-weight: bold !important;
             }
         </style>
         """,
@@ -302,26 +300,38 @@ def render_home():
         c_medio = len(df_merged[df_merged["Riesgo"] == "🟡 RIESGO MEDIO"])
         c_alto = len(df_merged[df_merged["Riesgo"] == "🔴 RIESGO ALTO"])
 
-        # 🎛️ CÁPSULAS DE FILTRO CON BORDES SOBRIOS
-        opciones_tarjeta = {
-            f"🌐 TODAS ({len(df_merged)})": "TODAS",
-            f"🟢 RIESGO BAJO ({c_bajo})": "🟢 RIESGO BAJO",
-            f"🟡 RIESGO MEDIO ({c_medio})": "🟡 RIESGO MEDIO",
-            f"🔴 RIESGO ALTO ({c_alto})": "🔴 RIESGO ALTO"
-        }
+        # 🎛️ TARJETAS CON COLORES DE FONDO VIVOS
+        b1, b2, b3, b4 = st.columns(4)
 
-        seleccion = st.radio(
-            "Filtro de Riesgo",
-            options=list(opciones_tarjeta.keys()),
-            horizontal=True,
-            label_visibility="collapsed"
-        )
+        with b1:
+            st.markdown('<div class="btn-todas">', unsafe_allow_html=True)
+            if st.button(f"🌐 TODAS ({len(df_merged)})", key="btn_todas"):
+                st.session_state.categoria_activa = "TODAS"
+            st.markdown('</div>', unsafe_allow_html=True)
 
-        filtro_activo = opciones_tarjeta[seleccion]
+        with b2:
+            st.markdown('<div class="btn-bajo">', unsafe_allow_html=True)
+            if st.button(f"🟢 RIESGO BAJO ({c_bajo})", key="btn_bajo"):
+                st.session_state.categoria_activa = "🟢 RIESGO BAJO"
+            st.markdown('</div>', unsafe_allow_html=True)
 
-        # Aplicar el filtro según la tarjeta seleccionada
-        if filtro_activo != "TODAS":
-            df_filtrada = df_merged[df_merged["Riesgo"] == filtro_activo].copy()
+        with b3:
+            st.markdown('<div class="btn-medio">', unsafe_allow_html=True)
+            if st.button(f"🟡 RIESGO MEDIO ({c_medio})", key="btn_medio"):
+                st.session_state.categoria_activa = "🟡 RIESGO MEDIO"
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        with b4:
+            st.markdown('<div class="btn-alto">', unsafe_allow_html=True)
+            if st.button(f"🔴 RIESGO ALTO ({c_alto})", key="btn_alto"):
+                st.session_state.categoria_activa = "🔴 RIESGO ALTO"
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        st.caption(f"Filtro activo: **{st.session_state.categoria_activa}**")
+
+        # Aplicar el filtro según la selección
+        if st.session_state.categoria_activa != "TODAS":
+            df_filtrada = df_merged[df_merged["Riesgo"] == st.session_state.categoria_activa].copy()
         else:
             df_filtrada = df_merged.copy()
 
