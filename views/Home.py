@@ -31,7 +31,7 @@ from views.ConciliacionAddi import load_data_addi
 
 
 # ---------------------------------------------------------
-# CARGA Y PROCESAMIENTO DE VISITAS BI POR CÓDIGO
+# CARGA Y PROCESAMIENTO DE VISITAS Y NOMBRES BI
 # ---------------------------------------------------------
 @st.cache_data(ttl=60)
 def load_data_bi_visitas():
@@ -51,20 +51,28 @@ def load_data_bi_visitas():
             df_bi["PCT_NUM"] = df_bi["PCT_NUM"] * 100
 
         col_cod = [c for c in df_bi.columns if "COD" in c.upper()][0] if any("COD" in c.upper() for c in df_bi.columns) else df_bi.columns[1]
-        df_bi["CODIGO_CLEAN"] = df_bi[col_cod].astype(str).str.strip().str.upper()
+        col_alm = [c for c in df_bi.columns if "ALMACEN" in c.upper() or "TIENDA" in c.upper()][0] if any("ALMACEN" in c.upper() for c in df_bi.columns) else df_bi.columns[3]
         
-        df_promedio = df_bi.groupby("CODIGO_CLEAN")["PCT_NUM"].mean().reset_index()
-        df_promedio.columns = ["CODIGO", "PROMEDIO_VISITA_BI"]
+        df_bi["CODIGO_CLEAN"] = df_bi[col_cod].astype(str).str.strip().str.upper()
+        df_bi["ALMACEN_NOMBRE"] = df_bi[col_alm].astype(str).str.strip()
+        
+        # PROMEDIO DE VISITA Y NOMBRE OFICIAL POR CÓDIGO
+        df_promedio = df_bi.groupby("CODIGO_CLEAN").agg(
+            PROMEDIO_VISITA_BI=("PCT_NUM", "mean"),
+            ALMACEN_BI=("ALMACEN_NOMBRE", "first")
+        ).reset_index()
+        
+        df_promedio.columns = ["CODIGO", "PROMEDIO_VISITA_BI", "ALMACEN_BI"]
         return df_promedio
     except Exception as e:
-        return pd.DataFrame(columns=["CODIGO", "PROMEDIO_VISITA_BI"])
+        return pd.DataFrame(columns=["CODIGO", "PROMEDIO_VISITA_BI", "ALMACEN_BI"])
 
 
 def render_home():
     if "categoria_activa" not in st.session_state:
         st.session_state.categoria_activa = "TODAS"
 
-    # 🎨 ESTILOS CSS CON INYECCIÓN DIRECTA PARA RENDERIZAR FONDOS DE COLOR VIVOS
+    # 🎨 ESTILOS CSS CON INYECCIÓN DIRECTA
     st.markdown(
         """
         <style>
@@ -88,7 +96,6 @@ def render_home():
                 border: 1px solid #E2E8F0;
             }
             
-            /* FORZADO DE FONDO Y TEXTO BLANCO EN BOTONES DE TARJETAS */
             div.btn-todas button[data-testid="stBaseButton-secondary"] {
                 background-color: #1E3A8A !important;
                 color: #FFFFFF !important;
@@ -267,19 +274,25 @@ def render_home():
     st.subheader("🎯 Matriz de Riesgo")
 
     if not df_all_pairs.empty:
+        # Extraer el nombre más descriptivo / largo para evitar que sea solo el código
         df_tiendas_count = (
             df_all_pairs.groupby("CODIGO")
-            .agg(ALMACEN=("ALMACEN", "first"), Total_Hallazgos=("ALMACEN", "count"))
+            .agg(
+                ALMACEN_FALLBACK=("ALMACEN", lambda x: max(x, key=len)),
+                Total_Hallazgos=("ALMACEN", "count")
+            )
             .reset_index()
         )
 
-        # Cruce con datos de Visitas BI (0.0% si aún no tiene visita presencial)
+        # Cruce con datos de Visitas BI y Nombre Oficial del BI
         if not df_bi_promedio.empty:
             df_merged = pd.merge(df_tiendas_count, df_bi_promedio, on="CODIGO", how="left")
             df_merged["PROMEDIO_VISITA_BI"] = df_merged["PROMEDIO_VISITA_BI"].fillna(0.0)
+            df_merged["ALMACEN"] = df_merged["ALMACEN_BI"].fillna(df_merged["ALMACEN_FALLBACK"])
         else:
             df_merged = df_tiendas_count.copy()
             df_merged["PROMEDIO_VISITA_BI"] = 0.0
+            df_merged["ALMACEN"] = df_merged["ALMACEN_FALLBACK"]
 
         # Cálculo de Penalización (0.5% por hallazgo) y Nota Ajustada
         df_merged["Descuento_Pct"] = df_merged["Total_Hallazgos"] * 0.5
