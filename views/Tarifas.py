@@ -90,12 +90,12 @@ def render_informe_04():
         f"""
         <div style="background-color: {COLOR_BG_CARD}; padding: 18px; border-radius: 8px; border-left: 5px solid {COLOR_PRIMARY}; margin-bottom: 12px;">
             <p style="margin: 0; font-size: 14px; color: {COLOR_NEUTRAL_DARK};">
-                <strong>📌 Objetivo:</strong> Validar las tarifas usadas y su correcto uso (T. 900, General Outlet, Liquidación, Venta de bodega y Venta empleados) en la facturación de puntos de venta.
+                <strong>📌 Objetivo:</strong> Verificar la correcta aplicación de las tarifas comerciales (T. 900, General Outlet, Liquidación, Venta de bodega y Venta empleados), descuentos autorizados y precios especiales concedidos en los puntos de venta, asegurando que no existan desviaciones ni afectaciones a la margen financiera de la compañía.
             </p>
         </div>
         <div style="background-color: #FEF2F2; padding: 18px; border-radius: 8px; border-left: 5px solid {COLOR_DANGER}; margin-bottom: 25px;">
             <p style="margin: 0; font-size: 14px; color: #991B1B;">
-                <strong>⚡ Acción Correctiva:</strong> El mal uso de esta tarifa implica el cobro de la diferencia que se dejó de otorgar al líder que generó dicho error, así como el inicio del proceso disciplinario correspondiente.
+                <strong>⚡ Acción Correctiva:</strong> En los casos donde se identifique un uso indebido de tarifas o descuentos no autorizados, se trasladará el caso a la Jefatura Regional para la justificación del descuento aplicado. De no presentar un soporte válido, se iniciará el cobro del saldo en contra al colaborador responsable mediante el procedimiento con el area de gestion humana.
             </p>
         </div>
         """,
