@@ -42,7 +42,7 @@ opcion_menu = st.sidebar.radio(
 st.sidebar.markdown("---")
 
 # Botón para forzar la recarga de datos
-if st.sidebar.button("🔄 Recargar Datos Ahora", use_container_width=True):
+if st.sidebar.button("🔄 Recargar Datos", use_container_width=True):
     st.cache_data.clear()
     st.rerun()
 
