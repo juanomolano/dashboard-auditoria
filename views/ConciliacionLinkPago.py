@@ -44,12 +44,12 @@ def render_informe_07():
         f"""
         <div style="background-color: {COLOR_BG_CARD}; padding: 18px; border-radius: 8px; border-left: 5px solid {COLOR_PRIMARY}; margin-bottom: 12px;">
             <p style="margin: 0; font-size: 14px; color: {COLOR_NEUTRAL_DARK};">
-                <strong>📌 Objetivo:</strong> Validar el proceso de conciliación de las transacciones generadas por medio de links de pago de Mercado Pago en las tiendas, garantizando el cruce correcto de cobros y facturación.
+                <strong>📌 Objetivo:</strong> Controlar y verificar la correcta aprobación, registro e impacto contable de los pagos recibidos a través de plataformas digitales (Links de Pago), asegurando que el despacho del producto corresponda a una transacción efectivamente respaldada por la pasarela de pagos.
             </p>
         </div>
         <div style="background-color: #FEF3C7; padding: 18px; border-radius: 8px; border-left: 5px solid {COLOR_ACCENT}; margin-bottom: 25px;">
             <p style="margin: 0; font-size: 14px; color: #92400E;">
-                <strong>⚡ Acción Correctiva:</strong> Se exige la justificación operativa inmediata de las inconsistencias detectadas y, según su impacto y recurrencia, se solicita el inicio del proceso disciplinario respectivo.
+                <strong>⚡ Acción Correctiva:</strong> Se remiten a las Jefaturas Regionales las discrepancias identificadas en las transacciones vía Link de Pago para su verificación e inspección operativa en las tiendas. En caso de no presentar un soporte válido de aprobación o de reincidir en la omisión de las validaciones requeridas antes de la entrega del producto, se procederá con la aplicación de los llamados de atención vigentes en el reglamento interno de trabajo y el respectivo proceso disciplinario.
             </p>
         </div>
         """,
