@@ -26,7 +26,7 @@ st.sidebar.markdown("---")
 opcion_menu = st.sidebar.radio(
     "Módulo de Auditoría:",
     [
-        "🏠 Resumen Consolidado General",
+        "🏠 Consolidado General",
         "🎁 Seguimiento Obsequios Valor $1",
         "💳 Control Anulaciones Forma de Pago",
         "🪪 Control Creación Tipo de Documento",
