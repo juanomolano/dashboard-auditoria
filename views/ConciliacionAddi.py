@@ -44,12 +44,12 @@ def render_informe_08():
         f"""
         <div style="background-color: {COLOR_BG_CARD}; padding: 18px; border-radius: 8px; border-left: 5px solid {COLOR_PRIMARY}; margin-bottom: 12px;">
             <p style="margin: 0; font-size: 14px; color: {COLOR_NEUTRAL_DARK};">
-                <strong>📌 Objetivo:</strong> Validar el proceso de conciliación de los créditos y pagos realizados mediante la plataforma Addi en las tiendas, asegurando la correcta facturación y cruce de datos.
+                <strong>📌 Objetivo:</strong> Validar la legibilidad, veracidad y adecuada formalización de las ventas financiadas a través de la alianza con Addi, asegurando que cada operación cuente con la aprobación de la entidad y los soportes de identificación del cliente.
             </p>
         </div>
         <div style="background-color: #FEF3C7; padding: 18px; border-radius: 8px; border-left: 5px solid {COLOR_ACCENT}; margin-bottom: 25px;">
             <p style="margin: 0; font-size: 14px; color: #92400E;">
-                <strong>⚡ Acción Correctiva:</strong> Se exige la justificación operativa inmediata de las inconsistencias en créditos Addi y, según la gravedad o reincidencia, se solicita el inicio del proceso disciplinario respectivo.
+                <strong>⚡ Acción Correctiva:</strong> Se notifica a las Jefaturas Regionales las inconsistencias y faltantes documentales en las operaciones de crédito Addi para que sean subsanadas y validadas con el equipo de cada punto de venta. De no contar con una justificación operativa válida sobre el incumplimiento de las políticas del convenio, y ante la persistencia de estas fallas, se ejecutarán las sanciones y llamados de atención previstos en el reglamento interno de trabajo, adelantando el debido proceso disciplinario correspondiente.
             </p>
         </div>
         """,
