@@ -78,12 +78,12 @@ def render_informe_02():
         f"""
         <div style="background-color: {COLOR_BG_CARD}; padding: 18px; border-radius: 8px; border-left: 5px solid {COLOR_PRIMARY}; margin-bottom: 12px;">
             <p style="margin: 0; font-size: 14px; color: {COLOR_NEUTRAL_DARK};">
-                <strong>📌 Objetivo:</strong> Validar el proceso de anulaciones forma de pago y sus respectivas justificaciones del porqué se realiza este movimiento en los puntos de venta.
+                <strong>📌 Objetivo:</strong> Supervisar y auditar la totalidad de los cambios y anulaciones en las formas de pago registradas en las transacciones comerciales a nivel nacional, garantizando que todo ajuste cumpla con los protocolos de autorización, trazabilidad documental y soporte de caja requeridos.
             </p>
         </div>
         <div style="background-color: #FEF3C7; padding: 18px; border-radius: 8px; border-left: 5px solid {COLOR_ACCENT}; margin-bottom: 25px;">
             <p style="margin: 0; font-size: 14px; color: #92400E;">
-                <strong>⚡ Acción Correctiva:</strong> Se genera la validación individual de la anulación registrada para verificar el cumplimiento de las políticas internas.
+                <strong>⚡ Acción Correctiva:</strong> Se remitirá el informe detallado a la gestión regional y administradores de tienda para la verificación inmediata de soportes físicos y digitales. De identificar inconsistencias, omisiones injustificadas o faltantes en el flujo de dinero, se solicitará el descargue formal del responsable y la aplicación del cobro o reajuste financiero según la norma disciplinaria y de control interno.
             </p>
         </div>
         """,
