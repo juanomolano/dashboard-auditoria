@@ -77,12 +77,12 @@ def render_informe_01():
         f"""
         <div style="background-color: {COLOR_BG_CARD}; padding: 18px; border-radius: 8px; border-left: 5px solid {COLOR_PRIMARY}; margin-bottom: 12px;">
             <p style="margin: 0; font-size: 14px; color: {COLOR_NEUTRAL_DARK};">
-                <strong>📌 Objetivo:</strong> Ejecutar la validación a nivel nacional de los obsequios otorgados a clientes que fueron registrados omitiendo las directrices de la política de obsequios referente al diligenciamiento de los campos obligatorios en la facturación de productos a $1, específicamente el motivo y la persona que autoriza. Este reporte consolidado se distribuye a las Jefaturas Regionales para su correspondiente revisión, control y debida justificación.
+                <strong>📌 Objetivo:</strong> Ejecutar la validación a nivel nacional de los obsequios otorgados a clientes que fueron registrados omitiendo las directrices de la política interna referente al diligenciamiento obligatorio de campos clave en la facturación de productos a $1, específicamente el motivo de la entrega y la identificación del usuario autorizador.
             </p>
         </div>
         <div style="background-color: #FEF3C7; padding: 18px; border-radius: 8px; border-left: 5px solid {COLOR_ACCENT}; margin-bottom: 25px;">
             <p style="margin: 0; font-size: 14px; color: #92400E;">
-                <strong>⚡ Acción Correctiva:</strong> Como medida correctiva y de control interno, se solicita la aplicación de la nota crédito correspondiente para dichos obsequios, procediendo con su posterior refacturación bajo la tarifa mensual aplicable según el caso.
+                <strong>⚡ Acción Correctiva:</strong> Este reporte consolidado se distribuye a las Jefaturas Regionales para su correspondiente revisión, control y debida justificación. Como medida de control interno, de no contar con una justificación válida o soportada, se solicitará la emisión de la nota crédito correspondiente para proceder con la refacturación del producto a la tarifa comercial aplicable, asumiendo el líder o colaborador responsable el valor diferencial generado.
             </p>
         </div>
         """,
