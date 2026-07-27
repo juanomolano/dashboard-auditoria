@@ -71,7 +71,7 @@ def render_home():
     if "categoria_activa" not in st.session_state:
         st.session_state.categoria_activa = "TODAS"
 
-    # 🎨 ESTILOS CSS CON INYECCIÓN DIRECTA PARA TARJETAS DE RIESGO
+    # 🎨 ESTILOS CSS CON INYECCIÓN DIRECTA PARA TARJETAS Y KPIS
     st.markdown(
         """
         <style>
@@ -79,6 +79,20 @@ def render_home():
                 font-size: 1.8rem !important;
                 padding-bottom: 0px !important;
                 margin-bottom: 10px !important;
+            }
+            [data-testid="stMetricValue"] {
+                font-size: 1.1rem !important;
+                white-space: normal !important;
+                word-wrap: break-word !important;
+            }
+            [data-testid="stMetricLabel"] {
+                font-size: 0.85rem !important;
+            }
+            div[data-testid="stMetric"] {
+                background-color: #F8FAFC;
+                padding: 10px 14px;
+                border-radius: 8px;
+                border: 1px solid #E2E8F0;
             }
             
             div.btn-todas button[data-testid="stBaseButton-secondary"] {
@@ -213,8 +227,18 @@ def render_home():
     df_tarifas_filt = df_filtrado_final[df_filtrado_final["Modulo"] == "Tarifas"] if not df_filtrado_final.empty else pd.DataFrame()
     saldo_tarifas = df_tarifas_filt["SALDO_NUMERICO"].sum() if not df_tarifas_filt.empty and "SALDO_NUMERICO" in df_tarifas_filt.columns else 0
 
+    top_regional_global = df_filtrado_final["REGIONAL_STD"].value_counts().index[0] if not df_filtrado_final.empty else "N/A"
+    top_almacen_global = df_filtrado_final["ALMACEN_STD"].value_counts().index[0] if not df_filtrado_final.empty else "N/A"
+
     # ---------------------------------------------------------
-    # 1. 🎯 MATRIZ DE RIESGO (PRIMER SECCIÓN)
+    # 📌 TARJETAS KPIS SUPERIORES (SOLO REGIONAL Y TIENDA CON MÁS CASOS)
+    # ---------------------------------------------------------
+    kpi_col1, kpi_col2 = st.columns(2)
+    kpi_col1.metric("Regional Crítica (Más Casos)", str(top_regional_global))
+    kpi_col2.metric("Tienda Reincidente (Más Casos)", str(top_almacen_global))
+
+    # ---------------------------------------------------------
+    # 1. 🎯 MATRIZ DE RIESGO
     # ---------------------------------------------------------
     st.markdown("---")
     st.subheader("🎯 Matriz de Riesgo")
@@ -310,7 +334,7 @@ def render_home():
         )
 
     # ---------------------------------------------------------
-    # 2. 📋 ESTADO OPERATIVO DE LOS 8 MÓDULOS DE CONTROL (SEGUNDA SECCIÓN)
+    # 2. 📋 ESTADO OPERATIVO DE LOS 8 MÓDULOS DE CONTROL
     # ---------------------------------------------------------
     st.markdown("---")
     st.subheader("📋 Estado Operativo de los 8 Módulos de Control")
@@ -331,7 +355,7 @@ def render_home():
         st.markdown(f"⚡ **Créditos Addi:** `{volumenes['Créditos Addi']:,}` registros conciliados.")
 
     # ---------------------------------------------------------
-    # 3. 📌 VOLUMEN Y 4. 🗺️ MAPA DE CALOR (TERCERA Y CUARTA SECCIÓN)
+    # 3. 📌 VOLUMEN Y 4. 🗺️ MAPA DE CALOR
     # ---------------------------------------------------------
     st.markdown("---")
     col_chart1, col_chart2 = st.columns([1.1, 0.9])
