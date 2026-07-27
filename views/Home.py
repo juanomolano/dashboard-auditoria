@@ -124,7 +124,7 @@ def render_home():
         unsafe_allow_html=True
     )
 
-    st.title("🏠 Tablero Consolidado General de Auditoría")
+    st.title("🏠 Consolidado General de Auditoría")
 
     # ---------------------------------------------------------
     # CARGA DE DATOS Y ESTANDARIZACIÓN
