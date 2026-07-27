@@ -31,7 +31,7 @@ from views.ConciliacionAddi import load_data_addi
 
 
 # ---------------------------------------------------------
-# CARGA Y PROCESAMIENTO DE VISITAS Y NOMBRES BI
+# CARGA Y PROCESAMIENTO DE VISITAS BI (COLUMNAS EXACTAS)
 # ---------------------------------------------------------
 @st.cache_data(ttl=60)
 def load_data_bi_visitas():
@@ -40,6 +40,7 @@ def load_data_bi_visitas():
         df_bi = pd.read_csv(url_bi, encoding="utf-8")
         df_bi.columns = df_bi.columns.str.strip()
         
+        # Buscar columna de Porcentaje o Visita
         col_pct = [c for c in df_bi.columns if "PORCENTAJE" in c.upper() or "VISITA" in c.upper()]
         col_target = col_pct[0] if col_pct else "Porcentaje"
         
@@ -50,8 +51,9 @@ def load_data_bi_visitas():
         if df_bi["PCT_NUM"].max() <= 1.0 and df_bi["PCT_NUM"].max() > 0:
             df_bi["PCT_NUM"] = df_bi["PCT_NUM"] * 100
 
-        col_cod = [c for c in df_bi.columns if "COD" in c.upper()][0] if any("COD" in c.upper() for c in df_bi.columns) else df_bi.columns[1]
-        col_alm = [c for c in df_bi.columns if "ALMACEN" in c.upper() or "TIENDA" in c.upper()][0] if any("ALMACEN" in c.upper() for c in df_bi.columns) else df_bi.columns[3]
+        # Mapeo exacto BI: CODIGO, ALMACEN, REGIONAL
+        col_cod = "CODIGO" if "CODIGO" in df_bi.columns else df_bi.columns[0]
+        col_alm = "ALMACEN" if "ALMACEN" in df_bi.columns else df_bi.columns[1]
         
         df_bi["CODIGO_CLEAN"] = df_bi[col_cod].astype(str).str.strip().str.upper()
         df_bi["ALMACEN_NOMBRE"] = df_bi[col_alm].astype(str).str.strip()
@@ -71,7 +73,7 @@ def render_home():
     if "categoria_activa" not in st.session_state:
         st.session_state.categoria_activa = "TODAS"
 
-    # 🎨 ESTILOS CSS CON INYECCIÓN DIRECTA PARA TARJETAS Y KPIS
+    # 🎨 ESTILOS CSS CON INYECCIÓN DIRECTA PARA BOTONES DE COLORES VIVOS
     st.markdown(
         """
         <style>
@@ -127,9 +129,9 @@ def render_home():
     st.title("🏠 Tablero Consolidado General de Auditoría")
 
     # ---------------------------------------------------------
-    # CARGA DE DATOS Y ESTANDARIZACIÓN
+    # CARGA DE DATOS MULTI-MÓDULO
     # ---------------------------------------------------------
-    with st.spinner("Consolidando métricas e informes de auditoría..."):
+    with st.spinner("Consolidando métricas e informes de auditoría con mapa exacto..."):
         df_m1 = load_data_obsequios()
         df_m2 = load_data_anulaciones()
         df_m3 = load_data_documentos()
@@ -140,29 +142,32 @@ def render_home():
         df_m8 = load_data_addi()
         df_bi_promedio = load_data_bi_visitas()
 
-    def estandarizar_df(df_input, modulo_nombre):
+    # 🛠️ FUNCION DE EXTRACCIÓN EXACTA CON TU MAPEO DE COLUMNAS
+    def estandarizar_informe_exacto(df_input, col_cod_nombre, col_alm_nombre, col_reg_nombre, modulo_nombre):
         if isinstance(df_input, pd.DataFrame) and not df_input.empty:
             temp = df_input.copy()
-            col_reg = [c for c in temp.columns if "REGIONAL" in c.upper()]
-            col_cod = [c for c in temp.columns if "COD" in c.upper() or "CODIGO" in c.upper()]
-            col_alm = [c for c in temp.columns if "ALMACEN" in c.upper() or "TIENDA" in c.upper()]
+            temp.columns = temp.columns.str.strip()
             
-            temp["REGIONAL_STD"] = temp[col_reg[0]].astype(str).str.strip().str.upper() if col_reg else "SIN REGIONAL"
-            temp["CODIGO_STD"] = temp[col_cod[0]].astype(str).str.strip().str.upper() if col_cod else "S/C"
-            temp["ALMACEN_STD"] = temp[col_alm[0]].astype(str).str.strip() if col_alm else temp["CODIGO_STD"]
+            c_cod = col_cod_nombre if col_cod_nombre in temp.columns else [c for c in temp.columns if "COD" in c.upper()][0]
+            c_alm = col_alm_nombre if col_alm_nombre in temp.columns else [c for c in temp.columns if "ALM" in c.upper() or "TIENDA" in c.upper()][0]
+            c_reg = col_reg_nombre if col_reg_nombre in temp.columns else [c for c in temp.columns if "REG" in c.upper()][0]
+            
+            temp["CODIGO_STD"] = temp[c_cod].astype(str).str.strip().str.upper()
+            temp["ALMACEN_STD"] = temp[c_alm].astype(str).str.strip()
+            temp["REGIONAL_STD"] = temp[c_reg].astype(str).str.strip().str.upper()
             temp["Modulo"] = modulo_nombre
             return temp
         return pd.DataFrame()
 
     list_df_std = [
-        estandarizar_df(df_m1, "Obsequios"),
-        estandarizar_df(df_m2, "Anulaciones"),
-        estandarizar_df(df_m3, "Documentos"),
-        estandarizar_df(df_m4, "Tarifas"),
-        estandarizar_df(df_m5, "Aperturas"),
-        estandarizar_df(df_m6, "Conciliacion"),
-        estandarizar_df(df_m7, "LinkPago"),
-        estandarizar_df(df_m8, "Addi")
+        estandarizar_informe_exacto(df_m1, "CODALMACEN", "ALMACEN", "REGIONAL", "Obsequios"),
+        estandarizar_informe_exacto(df_m2, "CODALMACEN", "NOMBRE_ALMACEN", "REGIONAL", "Anulaciones"),
+        estandarizar_informe_exacto(df_m3, "CODALMACEN", "ALMACEN", "REGIONAL", "Documentos"),
+        estandarizar_informe_exacto(df_m4, "COD", "ALMACEN", "REGIONAL", "Tarifas"),
+        estandarizar_informe_exacto(df_m5, "CODIGO", "TIENDA", "REGIONAL", "Aperturas"),
+        estandarizar_informe_exacto(df_m6, "Codigo", "TIENDA", "REGIONAL", "Conciliacion"),
+        estandarizar_informe_exacto(df_m7, "CODALMACEN", "ALMACEN", "REGIONAL", "LinkPago"),
+        estandarizar_informe_exacto(df_m8, "CODALMACEN", "ALMACEN", "REGIONAL", "Addi")
     ]
 
     df_consolidado_all = pd.concat([d for d in list_df_std if not d.empty], ignore_index=True) if any(not d.empty for d in list_df_std) else pd.DataFrame()
@@ -231,7 +236,7 @@ def render_home():
     top_almacen_global = df_filtrado_final["ALMACEN_STD"].value_counts().index[0] if not df_filtrado_final.empty else "N/A"
 
     # ---------------------------------------------------------
-    # 📌 TARJETAS KPIS SUPERIORES (SOLO REGIONAL Y TIENDA CON MÁS CASOS)
+    # 📌 TARJETAS KPIS SUPERIORES (REGIONAL Y TIENDA CON MÁS CASOS)
     # ---------------------------------------------------------
     kpi_col1, kpi_col2 = st.columns(2)
     kpi_col1.metric("Regional Crítica (Más Casos)", str(top_regional_global))
