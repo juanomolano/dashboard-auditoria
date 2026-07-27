@@ -126,20 +126,9 @@ def render_home():
     )
 
     st.title("🏠 Tablero Consolidado General de Auditoría")
-    
-    st.markdown(
-        """
-        <div style="background-color: #F9FAFB; padding: 12px 18px; border-radius: 8px; border-left: 4px solid #1E3A8A; margin-bottom: 15px;">
-            <p style="margin: 0; font-size: 13px; color: #1F2937;">
-                📊 <strong>Centro de Control de Auditoría Interna:</strong> Vista consolidada en tiempo real con matriz de riesgo y penalización operativa.
-            </p>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
 
     # ---------------------------------------------------------
-    # CARGA DE DATOS MULTI-MÓDULO
+    # CARGA DE DATOS MULTI-MÓDULO Y CONSOLIDACIÓN
     # ---------------------------------------------------------
     with st.spinner("Consolidando métricas e informes de auditoría..."):
         df_m1 = load_data_obsequios()
@@ -152,7 +141,6 @@ def render_home():
         df_m8 = load_data_addi()
         df_bi_promedio = load_data_bi_visitas()
 
-    # Función auxiliar para estandarizar informes
     def estandarizar_df(df_input, modulo_nombre):
         if isinstance(df_input, pd.DataFrame) and not df_input.empty:
             temp = df_input.copy()
@@ -181,21 +169,31 @@ def render_home():
     df_consolidado_all = pd.concat([d for d in list_df_std if not d.empty], ignore_index=True) if any(not d.empty for d in list_df_std) else pd.DataFrame()
 
     # ---------------------------------------------------------
-    # CONTROLES Y FILTROS INTERACTIVOS SOLICITADOS POR LA JEFA
+    # 🎯 FILTROS DINÁMICOS SUPERIORES (SOLICITUD DE LA JEFA)
     # ---------------------------------------------------------
-    st.markdown("##### 🎛️ Filtros Ejecutivos Interactivos")
+    st.markdown(
+        """
+        <div style="background-color: #F8FAFC; padding: 14px; border-radius: 8px; border: 1px solid #CBD5E1; margin-bottom: 20px;">
+            <p style="margin: 0 0 10px 0; font-size: 14px; color: #1E3A8A; font-weight: bold;">
+                🎛️ Centro de Control Interactivo: Selecciona una Regional y/o Almacén para filtrar todo el Dashboard en tiempo real.
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
     f_col1, f_col2 = st.columns(2)
 
-    # 1. Selector Dinámico de Regionales
+    # 1. Selector de Regional
     regionales_disponibles = ["TODAS"] + sorted([r for r in df_consolidado_all["REGIONAL_STD"].unique() if r != "SIN REGIONAL"]) if not df_consolidado_all.empty else ["TODAS"]
-    sel_regional = f_col1.selectbox("🏢 Seleccionar Regional:", regionales_disponibles)
+    sel_regional = f_col1.selectbox("🏢 Regional a consultar:", regionales_disponibles, key="sel_regional_main")
 
     if sel_regional != "TODAS":
         df_sub_reg = df_consolidado_all[df_consolidado_all["REGIONAL_STD"] == sel_regional]
     else:
         df_sub_reg = df_consolidado_all.copy()
 
-    # 2. Selector Dinámico de Almacén (filtra según la regional seleccionada)
+    # 2. Selector de Almacén Dinámico
     if not df_sub_reg.empty:
         almacenes_unicos = df_sub_reg[["CODIGO_STD", "ALMACEN_STD"]].drop_duplicates()
         almacenes_unicos["DISPLAY"] = almacenes_unicos["CODIGO_STD"] + " - " + almacenes_unicos["ALMACEN_STD"]
@@ -203,16 +201,16 @@ def render_home():
     else:
         opciones_almacen = ["TODOS"]
 
-    sel_almacen_display = f_col2.selectbox("🏪 Seleccionar Almacén Específico:", opciones_almacen)
+    sel_almacen_display = f_col2.selectbox("🏪 Almacén a consultar:", opciones_almacen, key="sel_almacen_main")
 
-    # Filtrado final para todo el tablero
+    # Aplicación estricta del filtro al dataset principal
     if sel_almacen_display != "TODOS":
         cod_sel = sel_almacen_display.split(" - ")[0]
         df_filtrado_final = df_consolidado_all[df_consolidado_all["CODIGO_STD"] == cod_sel]
     else:
         df_filtrado_final = df_sub_reg.copy()
 
-    # Recálculo de Volúmenes por Módulo
+    # Recálculos
     def contar_modulo(mod_name):
         return len(df_filtrado_final[df_filtrado_final["Modulo"] == mod_name]) if not df_filtrado_final.empty else 0
 
@@ -228,7 +226,6 @@ def render_home():
     }
 
     total_inconsistencias = sum(volumenes.values())
-    
     df_tarifas_filt = df_filtrado_final[df_filtrado_final["Modulo"] == "Tarifas"] if not df_filtrado_final.empty else pd.DataFrame()
     saldo_tarifas = df_tarifas_filt["SALDO_NUMERICO"].sum() if not df_tarifas_filt.empty and "SALDO_NUMERICO" in df_tarifas_filt.columns else 0
 
@@ -236,18 +233,18 @@ def render_home():
     top_almacen_global = df_filtrado_final["ALMACEN_STD"].value_counts().index[0] if not df_filtrado_final.empty else "N/A"
 
     # ---------------------------------------------------------
-    # TARJETAS DE KPIS CONSOLIDADOS (DINÁMICAS)
+    # TARJETAS DE KPIS CONSOLIDADOS (ACTUALIZADAS DINÁMICAMENTE)
     # ---------------------------------------------------------
     kpi1, kpi2, kpi3, kpi4 = st.columns(4)
     kpi1.metric("Hallazgos Auditados", f"{total_inconsistencias:,}")
     kpi2.metric("Saldo Recuperado", f"$ {saldo_tarifas:,.0f}")
-    kpi3.metric("Regional Crítica", str(top_regional_global))
+    kpi3.metric("Regional Activa", str(top_regional_global))
     kpi4.metric("Almacén Reincidente", str(top_almacen_global))
 
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ---------------------------------------------------------
-    # VISUALIZACIONES PRINCIPALES (CON SEMÁFORO EN MAPA DE CALOR)
+    # VISUALIZACIONES PRINCIPALES (MAPA DE CALOR SEMÁFORO)
     # ---------------------------------------------------------
     col_chart1, col_chart2 = st.columns([1.1, 0.9])
 
@@ -281,7 +278,7 @@ def render_home():
         if not df_filtrado_final.empty:
             df_matrix = pd.crosstab(df_filtrado_final["REGIONAL_STD"], df_filtrado_final["Modulo"])
             
-            # 🎨 MAPA DE CALOR CON ESCALA SEMÁFORO (Verde -> Amarillo -> Rojo)
+            # 🎨 COLOR EN ESCALA TÉRMICA (VERDE -> AMARILLO -> ROJO)
             fig_heatmap = px.imshow(
                 df_matrix,
                 labels=dict(x="Módulo de Control", y="Regional", color="Hallazgos"),
@@ -300,7 +297,7 @@ def render_home():
             )
             st.plotly_chart(fig_heatmap, use_container_width=True)
         else:
-            st.info("Sin datos para generar el mapa zonal con el filtro activo.")
+            st.info("Sin datos para generar el mapa zonal con la selección actual.")
 
     # ---------------------------------------------------------
     # MATRIZ DE RIESGO
@@ -319,7 +316,6 @@ def render_home():
         )
         df_tiendas_count.rename(columns={"CODIGO_STD": "CODIGO"}, inplace=True)
 
-        # Cruce con datos de Visitas BI y Nombre Oficial del BI
         if not df_bi_promedio.empty:
             df_merged = pd.merge(df_tiendas_count, df_bi_promedio, on="CODIGO", how="left")
             df_merged["PROMEDIO_VISITA_BI"] = df_merged["PROMEDIO_VISITA_BI"].fillna(0.0)
@@ -329,11 +325,9 @@ def render_home():
             df_merged["PROMEDIO_VISITA_BI"] = 0.0
             df_merged["ALMACEN"] = df_merged["ALMACEN_FALLBACK"]
 
-        # Cálculo de Penalización (0.5% por hallazgo) y Nota Ajustada
         df_merged["Descuento_Pct"] = df_merged["Total_Hallazgos"] * 0.5
         df_merged["Nota_Ajustada"] = df_merged["PROMEDIO_VISITA_BI"] - df_merged["Descuento_Pct"]
 
-        # Clasificación por Nivel de Riesgo
         def clasificar_riesgo(nota):
             if nota >= 85.0:
                 return "🟢 RIESGO BAJO"
@@ -348,7 +342,7 @@ def render_home():
         c_medio = len(df_merged[df_merged["Riesgo"] == "🟡 RIESGO MEDIO"])
         c_alto = len(df_merged[df_merged["Riesgo"] == "🔴 RIESGO ALTO"])
 
-        # 🎛️ TARJETAS CON COLORES DE FONDO VIVOS
+        # 🎛️ TARJETAS CON COLORES DE FONDO VIVOS DE NIVEL DE RIESGO
         b1, b2, b3, b4 = st.columns(4)
 
         with b1:
@@ -377,16 +371,13 @@ def render_home():
 
         st.caption(f"Filtro activo: **{st.session_state.categoria_activa}**")
 
-        # Aplicar el filtro según la selección
         if st.session_state.categoria_activa != "TODAS":
             df_filtrada = df_merged[df_merged["Riesgo"] == st.session_state.categoria_activa].copy()
         else:
             df_filtrada = df_merged.copy()
 
-        # Ordenar primero por Total_Hallazgos
         df_filtrada = df_filtrada.sort_values(by="Total_Hallazgos", ascending=False)
 
-        # Formatear columnas para visualización
         df_filtrada["Total Hallazgos Informes"] = df_filtrada.apply(
             lambda row: f"{row['Total_Hallazgos']} (-{row['Descuento_Pct']:.1f}%)", axis=1
         )
@@ -409,7 +400,7 @@ def render_home():
     # ---------------------------------------------------------
     st.markdown("---")
     st.subheader("📋 Estado Operativo de los 8 Módulos de Control")
-    st.write(f"Estatus general de los procesos bajo supervisión ({'Global' if sel_regional == 'TODAS' else sel_regional}):")
+    st.write(f"Estatus general de los procesos bajo supervisión ({'Filtro Global' if sel_regional == 'TODAS' else sel_regional}):")
 
     m_col1, m_col2 = st.columns(2)
 
