@@ -84,12 +84,12 @@ def render_informe_03():
         f"""
         <div style="background-color: {COLOR_BG_CARD}; padding: 18px; border-radius: 8px; border-left: 5px solid {COLOR_PRIMARY}; margin-bottom: 12px;">
             <p style="margin: 0; font-size: 14px; color: {COLOR_NEUTRAL_DARK};">
-                <strong>📌 Objetivo:</strong> Validar la correcta creación e ingreso del tipo de documento de los clientes facturados en los puntos de venta.
+                <strong>📌 Objetivo:</strong> Auditar la calidad e integridad de la base de datos de clientes mediante la identificación de inconsistencias, tipologías de documentos erróneas o registros incompletos realizados durante el proceso de facturación en las tiendas.
             </p>
         </div>
         <div style="background-color: #FEF3C7; padding: 18px; border-radius: 8px; border-left: 5px solid {COLOR_ACCENT}; margin-bottom: 25px;">
             <p style="margin: 0; font-size: 14px; color: #92400E;">
-                <strong>⚡ Acción Correctiva:</strong> Las facturas que presenten alguna novedad deben generar anulación de forma de pago, nota crédito y proceder con la refacturación bajo los datos correctos del cliente.
+                <strong>⚡ Acción Correctiva:</strong> Este reporte consolidado se distribuye a las Jefaturas Regionales para proceder con la depuración y corrección de los datos maestros en el sistema. Asimismo, a los líderes de tienda se les genera un reporte semanal cada lunes, en el cual se identifican minuciosamente estos errores para que ejecuten la debida depuración y corrección de los datos de los clientes, dando cumplimiento al respectivo procedimiento de actualización.
             </p>
         </div>
         """,
