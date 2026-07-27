@@ -40,7 +40,6 @@ def load_data_bi_visitas():
         df_bi = pd.read_csv(url_bi, encoding="utf-8")
         df_bi.columns = df_bi.columns.str.strip()
         
-        # Buscar columna de Porcentaje o Visita
         col_pct = [c for c in df_bi.columns if "PORCENTAJE" in c.upper() or "VISITA" in c.upper()]
         col_target = col_pct[0] if col_pct else "Porcentaje"
         
@@ -51,7 +50,6 @@ def load_data_bi_visitas():
         if df_bi["PCT_NUM"].max() <= 1.0 and df_bi["PCT_NUM"].max() > 0:
             df_bi["PCT_NUM"] = df_bi["PCT_NUM"] * 100
 
-        # Mapeo exacto BI: CODIGO, ALMACEN, REGIONAL
         col_cod = "CODIGO" if "CODIGO" in df_bi.columns else df_bi.columns[0]
         col_alm = "ALMACEN" if "ALMACEN" in df_bi.columns else df_bi.columns[1]
         
@@ -73,7 +71,7 @@ def render_home():
     if "categoria_activa" not in st.session_state:
         st.session_state.categoria_activa = "TODAS"
 
-    # 🎨 ESTILOS CSS CON INYECCIÓN DIRECTA PARA BOTONES DE COLORES VIVOS
+    # 🎨 ESTILOS CSS CON INYECCIÓN DIRECTA PARA TARJETAS Y KPIS
     st.markdown(
         """
         <style>
@@ -129,7 +127,7 @@ def render_home():
     st.title("🏠 Tablero Consolidado General de Auditoría")
 
     # ---------------------------------------------------------
-    # CARGA DE DATOS MULTI-MÓDULO
+    # CARGA DE DATOS Y ESTANDARIZACIÓN
     # ---------------------------------------------------------
     with st.spinner("Consolidando métricas e informes de auditoría con mapa exacto..."):
         df_m1 = load_data_obsequios()
@@ -142,7 +140,6 @@ def render_home():
         df_m8 = load_data_addi()
         df_bi_promedio = load_data_bi_visitas()
 
-    # 🛠️ FUNCION DE EXTRACCIÓN EXACTA CON TU MAPEO DE COLUMNAS
     def estandarizar_informe_exacto(df_input, col_cod_nombre, col_alm_nombre, col_reg_nombre, modulo_nombre):
         if isinstance(df_input, pd.DataFrame) and not df_input.empty:
             temp = df_input.copy()
@@ -173,6 +170,20 @@ def render_home():
     df_consolidado_all = pd.concat([d for d in list_df_std if not d.empty], ignore_index=True) if any(not d.empty for d in list_df_std) else pd.DataFrame()
 
     # ---------------------------------------------------------
+    # ENRIQUECIMIENTO DE NOMBRES CON HOJA OFICIAL DE BI
+    # ---------------------------------------------------------
+    if not df_consolidado_all.empty and not df_bi_promedio.empty:
+        df_consolidado_all = pd.merge(
+            df_consolidado_all,
+            df_bi_promedio[["CODIGO", "ALMACEN_BI"]],
+            left_on="CODIGO_STD",
+            right_on="CODIGO",
+            how="left"
+        )
+        # Priorizar el nombre proveniente del BI si existe
+        df_consolidado_all["ALMACEN_STD"] = df_consolidado_all["ALMACEN_BI"].fillna(df_consolidado_all["ALMACEN_STD"])
+
+    # ---------------------------------------------------------
     # 🎛️ FILTROS EJECUTIVOS SUPERIORES (REGIONAL Y ALMACÉN)
     # ---------------------------------------------------------
     st.markdown(
@@ -197,10 +208,15 @@ def render_home():
     else:
         df_sub_reg = df_consolidado_all.copy()
 
-    # 2. Selector de Almacén Dinámico
+    # 2. Selector de Almacén Dinámico (Obteniendo el nombre más largo/descriptivo por código único)
     if not df_sub_reg.empty:
-        almacenes_unicos = df_sub_reg[["CODIGO_STD", "ALMACEN_STD"]].drop_duplicates()
-        almacenes_unicos["DISPLAY"] = almacenes_unicos["CODIGO_STD"] + " - " + almacenes_unicos["ALMACEN_STD"]
+        # Extraer para cada CODIGO_STD el nombre más completo
+        almacenes_unicos = (
+            df_sub_reg.groupby("CODIGO_STD")
+            .agg(ALMACEN_BEST=("ALMACEN_STD", lambda x: max(x, key=len)))
+            .reset_index()
+        )
+        almacenes_unicos["DISPLAY"] = almacenes_unicos["CODIGO_STD"] + " - " + almacenes_unicos["ALMACEN_BEST"]
         opciones_almacen = ["TODOS"] + sorted(almacenes_unicos["DISPLAY"].tolist())
     else:
         opciones_almacen = ["TODOS"]
@@ -380,14 +396,17 @@ def render_home():
         )
         fig_bar_mod.update_traces(textposition="outside")
         fig_bar_mod.update_layout(
-            xaxis_title="Cantidad de Eventos",
+            xaxis_title="",
             yaxis_title="",
             coloraxis_showscale=False,
-            margin=dict(l=0, r=40, t=20, b=20),
+            margin=dict(l=0, r=90, t=20, b=20),
             height=380,
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)"
         )
+        max_val = df_vol["Cantidad"].max() if not df_vol.empty and df_vol["Cantidad"].max() > 0 else 10
+        fig_bar_mod.update_xaxes(range=[0, max_val * 1.25])
+
         st.plotly_chart(fig_bar_mod, use_container_width=True)
 
     with col_chart2:
