@@ -47,7 +47,7 @@ if st.sidebar.button("🔄 Recargar Datos Ahora", use_container_width=True):
     st.rerun()
 
 # Enrutamiento de las vistas
-if opcion_menu == "🏠 Resumen Consolidado General":
+if opcion_menu == "🏠 Consolidado General":
     render_home()
 elif opcion_menu == "🎁 Seguimiento Obsequios Valor $1":
     render_informe_01()
