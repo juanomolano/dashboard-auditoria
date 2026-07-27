@@ -56,7 +56,6 @@ def load_data_bi_visitas():
         df_bi["CODIGO_CLEAN"] = df_bi[col_cod].astype(str).str.strip().str.upper()
         df_bi["ALMACEN_NOMBRE"] = df_bi[col_alm].astype(str).str.strip()
         
-        # PROMEDIO DE VISITA Y NOMBRE OFICIAL POR CÓDIGO
         df_promedio = df_bi.groupby("CODIGO_CLEAN").agg(
             PROMEDIO_VISITA_BI=("PCT_NUM", "mean"),
             ALMACEN_BI=("ALMACEN_NOMBRE", "first")
@@ -72,7 +71,7 @@ def render_home():
     if "categoria_activa" not in st.session_state:
         st.session_state.categoria_activa = "TODAS"
 
-    # 🎨 ESTILOS CSS CON INYECCIÓN DIRECTA
+    # 🎨 ESTILOS CSS CON INYECCIÓN DIRECTA PARA TARJETAS DE RIESGO
     st.markdown(
         """
         <style>
@@ -80,20 +79,6 @@ def render_home():
                 font-size: 1.8rem !important;
                 padding-bottom: 0px !important;
                 margin-bottom: 10px !important;
-            }
-            [data-testid="stMetricValue"] {
-                font-size: 1.1rem !important;
-                white-space: normal !important;
-                word-wrap: break-word !important;
-            }
-            [data-testid="stMetricLabel"] {
-                font-size: 0.85rem !important;
-            }
-            div[data-testid="stMetric"] {
-                background-color: #F8FAFC;
-                padding: 10px 14px;
-                border-radius: 8px;
-                border: 1px solid #E2E8F0;
             }
             
             div.btn-todas button[data-testid="stBaseButton-secondary"] {
@@ -128,7 +113,7 @@ def render_home():
     st.title("🏠 Tablero Consolidado General de Auditoría")
 
     # ---------------------------------------------------------
-    # CARGA DE DATOS MULTI-MÓDULO Y CONSOLIDACIÓN
+    # CARGA DE DATOS Y ESTANDARIZACIÓN
     # ---------------------------------------------------------
     with st.spinner("Consolidando métricas e informes de auditoría..."):
         df_m1 = load_data_obsequios()
@@ -169,13 +154,13 @@ def render_home():
     df_consolidado_all = pd.concat([d for d in list_df_std if not d.empty], ignore_index=True) if any(not d.empty for d in list_df_std) else pd.DataFrame()
 
     # ---------------------------------------------------------
-    # 🎯 FILTROS DINÁMICOS SUPERIORES (SOLICITUD DE LA JEFA)
+    # 🎛️ FILTROS EJECUTIVOS SUPERIORES (REGIONAL Y ALMACÉN)
     # ---------------------------------------------------------
     st.markdown(
         """
-        <div style="background-color: #F8FAFC; padding: 14px; border-radius: 8px; border: 1px solid #CBD5E1; margin-bottom: 20px;">
-            <p style="margin: 0 0 10px 0; font-size: 14px; color: #1E3A8A; font-weight: bold;">
-                🎛️ Centro de Control Interactivo: Selecciona una Regional y/o Almacén para filtrar todo el Dashboard en tiempo real.
+        <div style="background-color: #F8FAFC; padding: 12px 16px; border-radius: 8px; border: 1px solid #CBD5E1; margin-bottom: 15px;">
+            <p style="margin: 0; font-size: 13px; color: #1E3A8A; font-weight: bold;">
+                🎛️ Centro de Control Interactivo: Filtra todo el tablero por Regional y/o Almacén Específico.
             </p>
         </div>
         """,
@@ -203,14 +188,14 @@ def render_home():
 
     sel_almacen_display = f_col2.selectbox("🏪 Almacén a consultar:", opciones_almacen, key="sel_almacen_main")
 
-    # Aplicación estricta del filtro al dataset principal
+    # Aplicar filtrado al dataset general
     if sel_almacen_display != "TODOS":
         cod_sel = sel_almacen_display.split(" - ")[0]
         df_filtrado_final = df_consolidado_all[df_consolidado_all["CODIGO_STD"] == cod_sel]
     else:
         df_filtrado_final = df_sub_reg.copy()
 
-    # Recálculos
+    # Recálculo de volúmenes filtrados
     def contar_modulo(mod_name):
         return len(df_filtrado_final[df_filtrado_final["Modulo"] == mod_name]) if not df_filtrado_final.empty else 0
 
@@ -225,82 +210,11 @@ def render_home():
         "Créditos Addi": contar_modulo("Addi")
     }
 
-    total_inconsistencias = sum(volumenes.values())
     df_tarifas_filt = df_filtrado_final[df_filtrado_final["Modulo"] == "Tarifas"] if not df_filtrado_final.empty else pd.DataFrame()
     saldo_tarifas = df_tarifas_filt["SALDO_NUMERICO"].sum() if not df_tarifas_filt.empty and "SALDO_NUMERICO" in df_tarifas_filt.columns else 0
 
-    top_regional_global = df_filtrado_final["REGIONAL_STD"].value_counts().index[0] if not df_filtrado_final.empty else "N/A"
-    top_almacen_global = df_filtrado_final["ALMACEN_STD"].value_counts().index[0] if not df_filtrado_final.empty else "N/A"
-
     # ---------------------------------------------------------
-    # TARJETAS DE KPIS CONSOLIDADOS (ACTUALIZADAS DINÁMICAMENTE)
-    # ---------------------------------------------------------
-    kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-    kpi1.metric("Hallazgos Auditados", f"{total_inconsistencias:,}")
-    kpi2.metric("Saldo Recuperado", f"$ {saldo_tarifas:,.0f}")
-    kpi3.metric("Regional Activa", str(top_regional_global))
-    kpi4.metric("Almacén Reincidente", str(top_almacen_global))
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # ---------------------------------------------------------
-    # VISUALIZACIONES PRINCIPALES (MAPA DE CALOR SEMÁFORO)
-    # ---------------------------------------------------------
-    col_chart1, col_chart2 = st.columns([1.1, 0.9])
-
-    with col_chart1:
-        st.markdown("##### 📌 Volumen de Hallazgos por Módulo Auditado")
-        df_vol = pd.DataFrame(list(volumenes.items()), columns=["Módulo", "Cantidad"]).sort_values(by="Cantidad", ascending=True)
-        
-        fig_bar_mod = px.bar(
-            df_vol,
-            x="Cantidad",
-            y="Módulo",
-            orientation="h",
-            text="Cantidad",
-            color="Cantidad",
-            color_continuous_scale="Blues"
-        )
-        fig_bar_mod.update_traces(textposition="outside")
-        fig_bar_mod.update_layout(
-            xaxis_title="Cantidad de Eventos",
-            yaxis_title="",
-            coloraxis_showscale=False,
-            margin=dict(l=0, r=40, t=20, b=20),
-            height=380,
-            paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)"
-        )
-        st.plotly_chart(fig_bar_mod, use_container_width=True)
-
-    with col_chart2:
-        st.markdown("##### 🗺️ Mapa de Calor: Hallazgos por Regional y Módulo")
-        if not df_filtrado_final.empty:
-            df_matrix = pd.crosstab(df_filtrado_final["REGIONAL_STD"], df_filtrado_final["Modulo"])
-            
-            # 🎨 COLOR EN ESCALA TÉRMICA (VERDE -> AMARILLO -> ROJO)
-            fig_heatmap = px.imshow(
-                df_matrix,
-                labels=dict(x="Módulo de Control", y="Regional", color="Hallazgos"),
-                x=df_matrix.columns,
-                y=df_matrix.index,
-                color_continuous_scale=[[0.0, "#10B981"], [0.5, "#F59E0B"], [1.0, "#EF4444"]],
-                text_auto=True
-            )
-            fig_heatmap.update_layout(
-                margin=dict(l=0, r=0, t=20, b=0),
-                height=380,
-                paper_bgcolor="rgba(0,0,0,0)",
-                plot_bgcolor="rgba(0,0,0,0)",
-                coloraxis_showscale=False,
-                xaxis_tickangle=-45
-            )
-            st.plotly_chart(fig_heatmap, use_container_width=True)
-        else:
-            st.info("Sin datos para generar el mapa zonal con la selección actual.")
-
-    # ---------------------------------------------------------
-    # MATRIZ DE RIESGO
+    # 1. 🎯 MATRIZ DE RIESGO (PRIMER SECCIÓN)
     # ---------------------------------------------------------
     st.markdown("---")
     st.subheader("🎯 Matriz de Riesgo")
@@ -342,7 +256,7 @@ def render_home():
         c_medio = len(df_merged[df_merged["Riesgo"] == "🟡 RIESGO MEDIO"])
         c_alto = len(df_merged[df_merged["Riesgo"] == "🔴 RIESGO ALTO"])
 
-        # 🎛️ TARJETAS CON COLORES DE FONDO VIVOS DE NIVEL DE RIESGO
+        # Tarjetas de filtro de color
         b1, b2, b3, b4 = st.columns(4)
 
         with b1:
@@ -396,7 +310,7 @@ def render_home():
         )
 
     # ---------------------------------------------------------
-    # RESUMEN EJECUTIVO DE PROCESOS AUDITADOS (DINÁMICO)
+    # 2. 📋 ESTADO OPERATIVO DE LOS 8 MÓDULOS DE CONTROL (SEGUNDA SECCIÓN)
     # ---------------------------------------------------------
     st.markdown("---")
     st.subheader("📋 Estado Operativo de los 8 Módulos de Control")
@@ -415,3 +329,60 @@ def render_home():
         st.markdown(f"💳 **Datáfonos Tarjetas:** `{volumenes['Datáfonos Tarjetas']:,}` alertas en datáfono.")
         st.markdown(f"🔗 **Links Mercado Pago:** `{volumenes['Links Mercado Pago']:,}` transacciones auditadas.")
         st.markdown(f"⚡ **Créditos Addi:** `{volumenes['Créditos Addi']:,}` registros conciliados.")
+
+    # ---------------------------------------------------------
+    # 3. 📌 VOLUMEN Y 4. 🗺️ MAPA DE CALOR (TERCERA Y CUARTA SECCIÓN)
+    # ---------------------------------------------------------
+    st.markdown("---")
+    col_chart1, col_chart2 = st.columns([1.1, 0.9])
+
+    with col_chart1:
+        st.markdown("##### 📌 Volumen de Hallazgos por Módulo Auditado")
+        df_vol = pd.DataFrame(list(volumenes.items()), columns=["Módulo", "Cantidad"]).sort_values(by="Cantidad", ascending=True)
+        
+        fig_bar_mod = px.bar(
+            df_vol,
+            x="Cantidad",
+            y="Módulo",
+            orientation="h",
+            text="Cantidad",
+            color="Cantidad",
+            color_continuous_scale="Blues"
+        )
+        fig_bar_mod.update_traces(textposition="outside")
+        fig_bar_mod.update_layout(
+            xaxis_title="Cantidad de Eventos",
+            yaxis_title="",
+            coloraxis_showscale=False,
+            margin=dict(l=0, r=40, t=20, b=20),
+            height=380,
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)"
+        )
+        st.plotly_chart(fig_bar_mod, use_container_width=True)
+
+    with col_chart2:
+        st.markdown("##### 🗺️ Mapa de Calor: Hallazgos por Regional y Módulo")
+        if not df_filtrado_final.empty:
+            df_matrix = pd.crosstab(df_filtrado_final["REGIONAL_STD"], df_filtrado_final["Modulo"])
+            
+            # Escala semáforo térmico (Verde -> Amarillo -> Rojo)
+            fig_heatmap = px.imshow(
+                df_matrix,
+                labels=dict(x="Módulo de Control", y="Regional", color="Hallazgos"),
+                x=df_matrix.columns,
+                y=df_matrix.index,
+                color_continuous_scale=[[0.0, "#10B981"], [0.5, "#F59E0B"], [1.0, "#EF4444"]],
+                text_auto=True
+            )
+            fig_heatmap.update_layout(
+                margin=dict(l=0, r=0, t=20, b=0),
+                height=380,
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+                coloraxis_showscale=False,
+                xaxis_tickangle=-45
+            )
+            st.plotly_chart(fig_heatmap, use_container_width=True)
+        else:
+            st.info("Sin datos para generar el mapa zonal con la selección actual.")
