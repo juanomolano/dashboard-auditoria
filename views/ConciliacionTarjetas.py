@@ -44,12 +44,12 @@ def render_informe_06():
         f"""
         <div style="background-color: {COLOR_BG_CARD}; padding: 18px; border-radius: 8px; border-left: 5px solid {COLOR_PRIMARY}; margin-bottom: 12px;">
             <p style="margin: 0; font-size: 14px; color: {COLOR_NEUTRAL_DARK};">
-                <strong>📌 Objetivo:</strong> Validar el proceso de pago por medio de datáfono en las tiendas, garantizando que los cobros se realicen y facturen dentro del punto de venta correspondiente y previniendo cruces de ventas con otras tiendas.
+                <strong>📌 Objetivo:</strong> Conciliar y auditar las transacciones procesadas mediante datáfonos e instituciones financieras contra las ventas registradas en el sistema POS, detectando descuadres, duplicidades o transacciones no abonadas a las cuentas de la compañía.
             </p>
         </div>
         <div style="background-color: #FEF3C7; padding: 18px; border-radius: 8px; border-left: 5px solid {COLOR_ACCENT}; margin-bottom: 25px;">
             <p style="margin: 0; font-size: 14px; color: #92400E;">
-                <strong>⚡ Acción Correctiva:</strong> Se exige la justificación inmediata de las novedades identificadas y, según la gravedad de la inconsistencia en los datáfonos, se solicita el inicio del proceso disciplinario correspondiente.
+                <strong>⚡ Acción Correctiva:</strong> Se notifica a las Jefaturas Regionales las novedades y descuadres detectados en las conciliaciones de datáfonos para que sean validados directamente con los puntos de venta. De no contar con una justificación válida sobre la inconsistencia o el faltante, y de persistir estos incumplimientos en el manejo del recaudo electrónico, se aplicarán los llamados de atención formales establecidos en el reglamento interno de trabajo y se iniciará el debido proceso disciplinario a que haya lugar.
             </p>
         </div>
         """,
