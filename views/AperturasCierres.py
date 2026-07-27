@@ -81,12 +81,12 @@ def render_informe_05():
         f"""
         <div style="background-color: {COLOR_BG_CARD}; padding: 18px; border-radius: 8px; border-left: 5px solid {COLOR_PRIMARY}; margin-bottom: 12px;">
             <p style="margin: 0; font-size: 14px; color: {COLOR_NEUTRAL_DARK};">
-                <strong>📌 Objetivo:</strong> Validar el reporte enviado por Prosegur de las aperturas y cierres de las tiendas que cuentan con la activación de alarmas de seguridad.
+                <strong>📌 Objetivo:</strong> Evaluar el cumplimiento de los horarios oficiales de operación, apertura y cierre en las tiendas a nivel nacional, garantizando la continuidad operativa y la atención oportuna a los clientes.
             </p>
         </div>
         <div style="background-color: #FEF3C7; padding: 18px; border-radius: 8px; border-left: 5px solid {COLOR_ACCENT}; margin-bottom: 25px;">
             <p style="margin: 0; font-size: 14px; color: #92400E;">
-                <strong>⚡ Acción Correctiva:</strong> A las tiendas que incurren en estas novedades se les genera un proceso disciplinario debido a la repercusión operativa y faltas a los horarios de apertura/cierre.
+                <strong>⚡ Acción Correctiva:</strong> Las novedades y extemporaneidades detectadas serán notificadas a la gestión humana y al Jefe regional para la solicitud de los llamados de atención formales establecidoslos, de persistir los incumplimientos sin causa de fuerza mayor debidamente soportada, se aplicarán el respectivo proceso de descargos segun reglamento interno de trabajo.
             </p>
         </div>
         """,
