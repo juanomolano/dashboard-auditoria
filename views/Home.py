@@ -152,57 +152,91 @@ def render_home():
         df_m8 = load_data_addi()
         df_bi_promedio = load_data_bi_visitas()
 
-    volumenes = {
-        "Obsequios $1": len(df_m1) if isinstance(df_m1, pd.DataFrame) else 0,
-        "Anulaciones Forma Pago": len(df_m2) if isinstance(df_m2, pd.DataFrame) else 0,
-        "Tipo Documento": len(df_m3) if isinstance(df_m3, pd.DataFrame) else 0,
-        "Uso de Tarifas": len(df_m4) if isinstance(df_m4, pd.DataFrame) else 0,
-        "Apertura/Cierre Tiendas": len(df_m5) if isinstance(df_m5, pd.DataFrame) else 0,
-        "Datáfonos Tarjetas": len(df_m6) if isinstance(df_m6, pd.DataFrame) else 0,
-        "Links Mercado Pago": len(df_m7) if isinstance(df_m7, pd.DataFrame) else 0,
-        "Créditos Addi": len(df_m8) if isinstance(df_m8, pd.DataFrame) else 0
-    }
-    
-    total_inconsistencias = sum(volumenes.values())
-    saldo_tarifas = df_m4["SALDO_NUMERICO"].sum() if isinstance(df_m4, pd.DataFrame) and "SALDO_NUMERICO" in df_m4.columns and not df_m4.empty else 0
-
-    # Consolidador de Regionales
-    reg_list = []
-    for name, df_mod in [
-        ("Obsequios", df_m1), ("Anulaciones", df_m2), ("Documentos", df_m3),
-        ("Tarifas", df_m4), ("Aperturas", df_m5), ("Conciliacion", df_m6),
-        ("LinkPago", df_m7), ("Addi", df_m8)
-    ]:
-        if isinstance(df_mod, pd.DataFrame) and not df_mod.empty and "REGIONAL" in df_mod.columns:
-            temp = df_mod[["REGIONAL"]].dropna().copy()
-            temp["Modulo"] = name
-            reg_list.append(temp)
+    # Función auxiliar para estandarizar informes
+    def estandarizar_df(df_input, modulo_nombre):
+        if isinstance(df_input, pd.DataFrame) and not df_input.empty:
+            temp = df_input.copy()
+            col_reg = [c for c in temp.columns if "REGIONAL" in c.upper()]
+            col_cod = [c for c in temp.columns if "COD" in c.upper() or "CODIGO" in c.upper()]
+            col_alm = [c for c in temp.columns if "ALMACEN" in c.upper() or "TIENDA" in c.upper()]
             
-    df_reg_all = pd.concat(reg_list, ignore_index=True) if reg_list else pd.DataFrame()
-    top_regional_global = df_reg_all["REGIONAL"].value_counts().index[0] if not df_reg_all.empty else "N/A"
+            temp["REGIONAL_STD"] = temp[col_reg[0]].astype(str).str.strip().str.upper() if col_reg else "SIN REGIONAL"
+            temp["CODIGO_STD"] = temp[col_cod[0]].astype(str).str.strip().str.upper() if col_cod else "S/C"
+            temp["ALMACEN_STD"] = temp[col_alm[0]].astype(str).str.strip() if col_alm else temp["CODIGO_STD"]
+            temp["Modulo"] = modulo_nombre
+            return temp
+        return pd.DataFrame()
 
-    # Consolidador de Almacenes (Código + Nombre)
-    alm_pairs = []
-    for df_mod in [df_m1, df_m2, df_m3, df_m4, df_m5, df_m6, df_m7, df_m8]:
-        if isinstance(df_mod, pd.DataFrame) and not df_mod.empty:
-            col_cod = [c for c in df_mod.columns if "COD" in c.upper() or "CODIGO" in c.upper()]
-            col_alm = [c for c in df_mod.columns if "ALMACEN" in c.upper() or "TIENDA" in c.upper()]
-            
-            if col_cod and col_alm:
-                temp_df = df_mod[[col_cod[0], col_alm[0]]].dropna().copy()
-                temp_df.columns = ["CODIGO", "ALMACEN"]
-                temp_df["CODIGO"] = temp_df["CODIGO"].astype(str).str.strip().str.upper()
-                alm_pairs.append(temp_df)
+    list_df_std = [
+        estandarizar_df(df_m1, "Obsequios"),
+        estandarizar_df(df_m2, "Anulaciones"),
+        estandarizar_df(df_m3, "Documentos"),
+        estandarizar_df(df_m4, "Tarifas"),
+        estandarizar_df(df_m5, "Aperturas"),
+        estandarizar_df(df_m6, "Conciliacion"),
+        estandarizar_df(df_m7, "LinkPago"),
+        estandarizar_df(df_m8, "Addi")
+    ]
 
-    if alm_pairs:
-        df_all_pairs = pd.concat(alm_pairs, ignore_index=True)
-        top_almacen_global = df_all_pairs["ALMACEN"].value_counts().index[0] if not df_all_pairs.empty else "N/A"
-    else:
-        df_all_pairs = pd.DataFrame(columns=["CODIGO", "ALMACEN"])
-        top_almacen_global = "N/A"
+    df_consolidado_all = pd.concat([d for d in list_df_std if not d.empty], ignore_index=True) if any(not d.empty for d in list_df_std) else pd.DataFrame()
 
     # ---------------------------------------------------------
-    # TARJETAS DE KPIS CONSOLIDADOS
+    # CONTROLES Y FILTROS INTERACTIVOS SOLICITADOS POR LA JEFA
+    # ---------------------------------------------------------
+    st.markdown("##### 🎛️ Filtros Ejecutivos Interactivos")
+    f_col1, f_col2 = st.columns(2)
+
+    # 1. Selector Dinámico de Regionales
+    regionales_disponibles = ["TODAS"] + sorted([r for r in df_consolidado_all["REGIONAL_STD"].unique() if r != "SIN REGIONAL"]) if not df_consolidado_all.empty else ["TODAS"]
+    sel_regional = f_col1.selectbox("🏢 Seleccionar Regional:", regionales_disponibles)
+
+    if sel_regional != "TODAS":
+        df_sub_reg = df_consolidado_all[df_consolidado_all["REGIONAL_STD"] == sel_regional]
+    else:
+        df_sub_reg = df_consolidado_all.copy()
+
+    # 2. Selector Dinámico de Almacén (filtra según la regional seleccionada)
+    if not df_sub_reg.empty:
+        almacenes_unicos = df_sub_reg[["CODIGO_STD", "ALMACEN_STD"]].drop_duplicates()
+        almacenes_unicos["DISPLAY"] = almacenes_unicos["CODIGO_STD"] + " - " + almacenes_unicos["ALMACEN_STD"]
+        opciones_almacen = ["TODOS"] + sorted(almacenes_unicos["DISPLAY"].tolist())
+    else:
+        opciones_almacen = ["TODOS"]
+
+    sel_almacen_display = f_col2.selectbox("🏪 Seleccionar Almacén Específico:", opciones_almacen)
+
+    # Filtrado final para todo el tablero
+    if sel_almacen_display != "TODOS":
+        cod_sel = sel_almacen_display.split(" - ")[0]
+        df_filtrado_final = df_consolidado_all[df_consolidado_all["CODIGO_STD"] == cod_sel]
+    else:
+        df_filtrado_final = df_sub_reg.copy()
+
+    # Recálculo de Volúmenes por Módulo
+    def contar_modulo(mod_name):
+        return len(df_filtrado_final[df_filtrado_final["Modulo"] == mod_name]) if not df_filtrado_final.empty else 0
+
+    volumenes = {
+        "Obsequios $1": contar_modulo("Obsequios"),
+        "Anulaciones Forma Pago": contar_modulo("Anulaciones"),
+        "Tipo Documento": contar_modulo("Documentos"),
+        "Uso de Tarifas": contar_modulo("Tarifas"),
+        "Apertura/Cierre Tiendas": contar_modulo("Aperturas"),
+        "Datáfonos Tarjetas": contar_modulo("Conciliacion"),
+        "Links Mercado Pago": contar_modulo("LinkPago"),
+        "Créditos Addi": contar_modulo("Addi")
+    }
+
+    total_inconsistencias = sum(volumenes.values())
+    
+    df_tarifas_filt = df_filtrado_final[df_filtrado_final["Modulo"] == "Tarifas"] if not df_filtrado_final.empty else pd.DataFrame()
+    saldo_tarifas = df_tarifas_filt["SALDO_NUMERICO"].sum() if not df_tarifas_filt.empty and "SALDO_NUMERICO" in df_tarifas_filt.columns else 0
+
+    top_regional_global = df_filtrado_final["REGIONAL_STD"].value_counts().index[0] if not df_filtrado_final.empty else "N/A"
+    top_almacen_global = df_filtrado_final["ALMACEN_STD"].value_counts().index[0] if not df_filtrado_final.empty else "N/A"
+
+    # ---------------------------------------------------------
+    # TARJETAS DE KPIS CONSOLIDADOS (DINÁMICAS)
     # ---------------------------------------------------------
     kpi1, kpi2, kpi3, kpi4 = st.columns(4)
     kpi1.metric("Hallazgos Auditados", f"{total_inconsistencias:,}")
@@ -213,7 +247,7 @@ def render_home():
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ---------------------------------------------------------
-    # VISUALIZACIONES PRINCIPALES
+    # VISUALIZACIONES PRINCIPALES (CON SEMÁFORO EN MAPA DE CALOR)
     # ---------------------------------------------------------
     col_chart1, col_chart2 = st.columns([1.1, 0.9])
 
@@ -244,15 +278,16 @@ def render_home():
 
     with col_chart2:
         st.markdown("##### 🗺️ Mapa de Calor: Hallazgos por Regional y Módulo")
-        if not df_reg_all.empty:
-            df_matrix = pd.crosstab(df_reg_all["REGIONAL"], df_reg_all["Modulo"])
+        if not df_filtrado_final.empty:
+            df_matrix = pd.crosstab(df_filtrado_final["REGIONAL_STD"], df_filtrado_final["Modulo"])
             
+            # 🎨 MAPA DE CALOR CON ESCALA SEMÁFORO (Verde -> Amarillo -> Rojo)
             fig_heatmap = px.imshow(
                 df_matrix,
                 labels=dict(x="Módulo de Control", y="Regional", color="Hallazgos"),
                 x=df_matrix.columns,
                 y=df_matrix.index,
-                color_continuous_scale="Blues",
+                color_continuous_scale=[[0.0, "#10B981"], [0.5, "#F59E0B"], [1.0, "#EF4444"]],
                 text_auto=True
             )
             fig_heatmap.update_layout(
@@ -265,7 +300,7 @@ def render_home():
             )
             st.plotly_chart(fig_heatmap, use_container_width=True)
         else:
-            st.info("Sin datos para generar el mapa zonal.")
+            st.info("Sin datos para generar el mapa zonal con el filtro activo.")
 
     # ---------------------------------------------------------
     # MATRIZ DE RIESGO
@@ -273,16 +308,16 @@ def render_home():
     st.markdown("---")
     st.subheader("🎯 Matriz de Riesgo")
 
-    if not df_all_pairs.empty:
-        # Extraer el nombre más descriptivo / largo para evitar que sea solo el código
+    if not df_filtrado_final.empty:
         df_tiendas_count = (
-            df_all_pairs.groupby("CODIGO")
+            df_filtrado_final.groupby("CODIGO_STD")
             .agg(
-                ALMACEN_FALLBACK=("ALMACEN", lambda x: max(x, key=len)),
-                Total_Hallazgos=("ALMACEN", "count")
+                ALMACEN_FALLBACK=("ALMACEN_STD", lambda x: max(x, key=len)),
+                Total_Hallazgos=("ALMACEN_STD", "count")
             )
             .reset_index()
         )
+        df_tiendas_count.rename(columns={"CODIGO_STD": "CODIGO"}, inplace=True)
 
         # Cruce con datos de Visitas BI y Nombre Oficial del BI
         if not df_bi_promedio.empty:
@@ -370,11 +405,11 @@ def render_home():
         )
 
     # ---------------------------------------------------------
-    # RESUMEN EJECUTIVO DE PROCESOS AUDITADOS
+    # RESUMEN EJECUTIVO DE PROCESOS AUDITADOS (DINÁMICO)
     # ---------------------------------------------------------
     st.markdown("---")
     st.subheader("📋 Estado Operativo de los 8 Módulos de Control")
-    st.write("Estatus general de los procesos bajo supervisión:")
+    st.write(f"Estatus general de los procesos bajo supervisión ({'Global' if sel_regional == 'TODAS' else sel_regional}):")
 
     m_col1, m_col2 = st.columns(2)
 
