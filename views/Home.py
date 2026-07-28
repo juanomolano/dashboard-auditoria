@@ -183,7 +183,7 @@ def render_home():
         df_consolidado_all["ALMACEN_STD"] = df_consolidado_all["ALMACEN_BI"].fillna(df_consolidado_all["ALMACEN_STD"])
 
     # ---------------------------------------------------------
-    # 🎛️ FILTROS EJECUTIVOS SUPERIORES (REGIONAL Y ALMACÉN)
+    # 🎛️ FILTROS EJECUTIVOS SUPERIORES
     # ---------------------------------------------------------
     st.markdown(
         """
@@ -246,19 +246,10 @@ def render_home():
     top_almacen_global = df_filtrado_final["ALMACEN_STD"].value_counts().index[0] if not df_filtrado_final.empty else "N/A"
 
     # ---------------------------------------------------------
-    # 📌 TARJETAS KPIS SUPERIORES
+    # PREPARACIÓN DE DATOS BASE PARA LA MATRIZ Y PROMEDIO GENERAL
     # ---------------------------------------------------------
-    kpi_col1, kpi_col2 = st.columns(2)
-    kpi_col1.metric("Regional Crítica (Más Casos)", str(top_regional_global))
-    kpi_col2.metric("Tienda Reincidente (Más Casos)", str(top_almacen_global))
-
-    # ---------------------------------------------------------
-    # 1. 🎯 MATRIZ DE RIESGO
-    # ---------------------------------------------------------
-    st.markdown("---")
-    st.subheader("🎯 Matriz de Riesgo")
-
     df_merged = pd.DataFrame()
+    promedio_general_regionales = 0.0
 
     if not df_filtrado_final.empty:
         df_tiendas_count = (
@@ -294,6 +285,24 @@ def render_home():
 
         df_merged["Riesgo"] = df_merged["Nota_Ajustada"].apply(clasificar_riesgo)
 
+        # Cálculo explícito del Promedio General Consolidado
+        promedio_general_regionales = df_merged["Nota_Ajustada"].mean() if not df_merged.empty else 0.0
+
+    # ---------------------------------------------------------
+    # 📌 TARJETAS KPIS SUPERIORES (INCLUYENDO PROMEDIO GENERAL)
+    # ---------------------------------------------------------
+    kpi_col1, kpi_col2, kpi_col3 = st.columns(3)
+    kpi_col1.metric("⭐ PROMEDIO GENERAL REGIONALES", f"{promedio_general_regionales:.1f}%")
+    kpi_col2.metric("Regional Crítica (Más Casos)", str(top_regional_global))
+    kpi_col3.metric("Tienda Reincidente (Más Casos)", str(top_almacen_global))
+
+    # ---------------------------------------------------------
+    # 1. 🎯 MATRIZ DE RIESGO
+    # ---------------------------------------------------------
+    st.markdown("---")
+    st.subheader("🎯 Matriz de Riesgo")
+
+    if not df_merged.empty:
         c_bajo = len(df_merged[df_merged["Riesgo"] == "🟢 RIESGO BAJO"])
         c_medio = len(df_merged[df_merged["Riesgo"] == "🟡 RIESGO MEDIO"])
         c_alto = len(df_merged[df_merged["Riesgo"] == "🔴 RIESGO ALTO"])
@@ -351,10 +360,10 @@ def render_home():
         )
 
     # ---------------------------------------------------------
-    # 🆕 1.5 PROMEDIO DE PORCENTAJE FINAL POR REGIONAL
+    # 🆕 1.5 SECCIÓN EXPLICITA: PROMEDIO Y DETALLE POR REGIONAL
     # ---------------------------------------------------------
     st.markdown("---")
-    st.subheader("📊 Consolidado de Porcentaje Final por Regional")
+    st.subheader("📊 Consolidado y Promedio General de las Regionales")
 
     if not df_merged.empty:
         df_regional_pct = (
@@ -369,7 +378,6 @@ def render_home():
             .sort_values(by="Promedio_Porcentaje_Final", ascending=False)
         )
 
-        # Clasificación del nivel de riesgo regional
         def clasificar_riesgo_reg(promedio):
             if promedio >= 85.0:
                 return "🟢 RIESGO BAJO"
@@ -380,11 +388,24 @@ def render_home():
 
         df_regional_pct["Estado Regional"] = df_regional_pct["Promedio_Porcentaje_Final"].apply(clasificar_riesgo_reg)
 
+        # Crear fila final del Promedio General Global
+        fila_promedio_global = pd.DataFrame([{
+            "REGIONAL": "TOTAL / PROMEDIO GENERAL GLOBAL",
+            "Tiendas_Auditadas": df_regional_pct["Tiendas_Auditadas"].sum(),
+            "Promedio_Porcentaje_Visita": df_regional_pct["Promedio_Porcentaje_Visita"].mean(),
+            "Promedio_Porcentaje_Final": promedio_general_regionales,
+            "Total_Hallazgos": df_regional_pct["Total_Hallazgos"].sum(),
+            "Estado Regional": clasificar_riesgo_reg(promedio_general_regionales)
+        }])
+
+        df_regional_tabla = pd.concat([df_regional_pct, fila_promedio_global], ignore_index=True)
+
         reg_col1, reg_col2 = st.columns([1.1, 0.9])
 
         with reg_col1:
-            st.markdown("##### 📋 Resumen por Regionales")
-            df_show_reg = df_regional_pct.copy()
+            st.markdown(f"##### 📋 Tabla Comparativa (% Promedio General: **`{promedio_general_regionales:.1f}%`**)")
+            
+            df_show_reg = df_regional_tabla.copy()
             df_show_reg["% Visita Inicial"] = df_show_reg["Promedio_Porcentaje_Visita"].apply(lambda x: f"{x:.1f}%")
             df_show_reg["% Porcentaje Final"] = df_show_reg["Promedio_Porcentaje_Final"].apply(lambda x: f"{x:.1f}%")
 
