@@ -124,7 +124,6 @@ def render_home():
             temp = df_input.copy()
             temp.columns = temp.columns.str.strip()
             
-            # Buscar la columna que contenga el código del almacén
             cols_cod = [c for c in temp.columns if "COD" in c.upper()]
             c_cod = col_cod_nombre if col_cod_nombre in temp.columns else (cols_cod[0] if cols_cod else temp.columns[0])
             
@@ -146,7 +145,7 @@ def render_home():
 
     df_consolidado_raw = pd.concat([d for d in list_df_std if not d.empty], ignore_index=True) if any(not d.empty for d in list_df_std) else pd.DataFrame()
 
-    # 🔑 MAPEO CON LA BASE MAESTRA OFICIAL (Asegura Regionales y Tiendas Perfectas)
+    # MAPEO CON LA BASE MAESTRA OFICIAL
     if not df_consolidado_raw.empty and not df_base_tiendas.empty:
         df_consolidado_all = pd.merge(
             df_consolidado_raw,
@@ -163,11 +162,10 @@ def render_home():
         df_consolidado_all["ALMACEN_STD"] = df_consolidado_all["CODIGO_STD"]
 
     # ---------------------------------------------------------
-    # 🎛️ FILTROS SUPERIORES PERFECTOS
+    # 🎛️ FILTROS SUPERIORES
     # ---------------------------------------------------------
     f_col1, f_col2 = st.columns(2)
 
-    # 1. Filtro estricto solo con nombres de Regionales reales
     list_regionales = sorted([r for r in df_consolidado_all["REGIONAL_STD"].unique() if r and r != "SIN REGIONAL"])
     regionales_disponibles = ["TODAS"] + list_regionales
 
@@ -178,7 +176,6 @@ def render_home():
     else:
         df_sub_reg = df_consolidado_all.copy()
 
-    # 2. Filtro de Almacenes
     if not df_sub_reg.empty:
         almacenes_unicos = (
             df_sub_reg.groupby("CODIGO_STD")
@@ -362,7 +359,7 @@ def render_home():
             st.plotly_chart(fig_bar_p, use_container_width=True)
 
     # ---------------------------------------------------------
-    # 2. 📋 ESTADO OPERATIVO Y GRÁFICOS
+    # 2. 📋 ESTADO OPERATIVO DE LOS 8 MÓDULOS DE CONTROL
     # ---------------------------------------------------------
     st.markdown("---")
     st.subheader("📋 Estado Operativo de los 8 Módulos de Control")
@@ -380,15 +377,39 @@ def render_home():
         st.markdown(f"🔗 **Links Mercado Pago:** `{volumenes['Links Mercado Pago']:,}` transacciones auditadas.")
         st.markdown(f"⚡ **Créditos Addi:** `{volumenes['Créditos Addi']:,}` registros conciliados.")
 
+    # ---------------------------------------------------------
+    # 3. 📌 VOLUMEN MULTICOLOR Y 4. 🗺️ MAPA DE CALOR
+    # ---------------------------------------------------------
     st.markdown("---")
     col_chart1, col_chart2 = st.columns([1.1, 0.9])
 
     with col_chart1:
         st.markdown("##### 📌 Volumen de Hallazgos por Módulo Auditado")
         df_vol = pd.DataFrame(list(volumenes.items()), columns=["Módulo", "Cantidad"]).sort_values(by="Cantidad", ascending=True)
-        fig_bar_mod = px.bar(df_vol, x="Cantidad", y="Módulo", orientation="h", text="Cantidad", color="Cantidad", color_continuous_scale="Blues")
+        
+        # 🎨 GRÁFICO MULTICOLOR POR MÓDULO
+        fig_bar_mod = px.bar(
+            df_vol,
+            x="Cantidad",
+            y="Módulo",
+            orientation="h",
+            text="Cantidad",
+            color="Módulo",
+            color_discrete_sequence=px.colors.qualitative.Bold
+        )
         fig_bar_mod.update_traces(textposition="outside")
-        fig_bar_mod.update_layout(xaxis_title="", yaxis_title="", coloraxis_showscale=False, margin=dict(l=0, r=90, t=20, b=20), height=380, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
+        fig_bar_mod.update_layout(
+            xaxis_title="",
+            yaxis_title="",
+            showlegend=False,
+            margin=dict(l=0, r=90, t=20, b=20),
+            height=380,
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)"
+        )
+        max_val = df_vol["Cantidad"].max() if not df_vol.empty and df_vol["Cantidad"].max() > 0 else 10
+        fig_bar_mod.update_xaxes(range=[0, max_val * 1.25])
+
         st.plotly_chart(fig_bar_mod, use_container_width=True)
 
     with col_chart2:
@@ -397,6 +418,22 @@ def render_home():
             df_matrix = pd.crosstab(df_filtrado_final["REGIONAL_STD"], df_filtrado_final["Modulo"])
             if "SIN REGIONAL" in df_matrix.index:
                 df_matrix = df_matrix.drop(index="SIN REGIONAL")
-            fig_heatmap = px.imshow(df_matrix, labels=dict(x="Módulo", y="Regional", color="Hallazgos"), x=df_matrix.columns, y=df_matrix.index, color_continuous_scale=[[0.0, "#10B981"], [0.5, "#F59E0B"], [1.0, "#EF4444"]], text_auto=True)
-            fig_heatmap.update_layout(margin=dict(l=0, r=0, t=20, b=0), height=380, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", coloraxis_showscale=False, xaxis_tickangle=-45)
+            fig_heatmap = px.imshow(
+                df_matrix,
+                labels=dict(x="Módulo", y="Regional", color="Hallazgos"),
+                x=df_matrix.columns,
+                y=df_matrix.index,
+                color_continuous_scale=[[0.0, "#10B981"], [0.5, "#F59E0B"], [1.0, "#EF4444"]],
+                text_auto=True
+            )
+            fig_heatmap.update_layout(
+                margin=dict(l=0, r=0, t=20, b=0),
+                height=380,
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+                coloraxis_showscale=False,
+                xaxis_tickangle=-45
+            )
             st.plotly_chart(fig_heatmap, use_container_width=True)
+        else:
+            st.info("Sin datos para generar el mapa zonal con la selección actual.")
