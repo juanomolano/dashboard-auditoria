@@ -348,18 +348,13 @@ def render_informe_03():
     st.write("Facturas registradas con posible inconsistencia de tipo de documento:")
     
     df_tabla = df_filtered.copy()
-    
-    # Ordenar por fecha real si existe la columna convertida
-    if "FECHA_DT" in df_tabla.columns:
-        df_tabla = df_tabla.sort_values(by="FECHA_DT", ascending=False)
-    
     if "FECHA_MOSTRAR" in df_tabla.columns:
         df_tabla["FECHAFACTURA"] = df_tabla["FECHA_MOSTRAR"]
         
     cols_display = [col for col in ["REGIONAL", "CODALMACEN", "ALMACEN", "FECHAFACTURA", "Factura", "DOCUMENTO", "IDENTIFICACION", "NOMVENDEDOR"] if col in df_tabla.columns]
     
     st.dataframe(
-        df_tabla[cols_display],
+        df_tabla[cols_display].sort_values(by="FECHAFACTURA", ascending=False),
         use_container_width=True,
         hide_index=True
     )
