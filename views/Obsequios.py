@@ -30,11 +30,6 @@ def load_data_obsequios():
 
 @st.cache_data(ttl=60)
 def load_metas_nacionales():
-    """
-    Carga la tabla de Totales Nacionales por Mes. 
-    Si tienes la URL del CSV de esa segunda tabla de Google Sheets, reemplázala aquí.
-    """
-    # Si publicaste la segunda hoja en CSV, pon la URL aquí:
     url_metas = "" 
     
     if url_metas:
@@ -47,7 +42,6 @@ def load_metas_nacionales():
         except Exception:
             pass
             
-    # Diccionario de respaldo según los datos de tu imagen
     data_metas = {
         "AÑO_MES": ["2025-12", "2026-01", "2026-02", "2026-03", "2026-04", "2026-05", "2026-06", "2026-07"],
         "Total_Nacional_Mes": [1000, 1000, 2000, 3000, 3000, 3000, 3000, 3000]
@@ -161,11 +155,9 @@ def render_informe_01():
 
         # 2. CRUCE CON LA TABLA DE TOTALES NACIONALES EXTERNA
         df_mensual = pd.merge(df_mensual, df_metas, on="AÑO_MES", how="left")
-        
-        # En caso de que un mes no exista en la tabla de metas, evitamos la división por cero asignando 1
         df_mensual["Total_Nacional_Mes"] = df_mensual["Total_Nacional_Mes"].fillna(1)
 
-        # 3. Regla de tres por mes: (Novedades Tienda Mes / Total Nacional Oficial Mes) * 100
+        # 3. Regla de tres por mes
         df_mensual["Pct_Nacional_Mes"] = (
             df_mensual["Novedades_Mes"] / df_mensual["Total_Nacional_Mes"]
         ) * 100
@@ -200,6 +192,12 @@ def render_informe_01():
             .reset_index()
             .sort_values(by="Novedades_Tienda", ascending=False)
         )
+
+        # ---------------------------------------------------------
+        # 🟢 CAMBIO AÑADIDO: Exportar porcentajes reales para el Home
+        # ---------------------------------------------------------
+        st.session_state["pct_obsequios_tiendas"] = df_resumen.set_index("CODALMACEN")["Pct_Acumulado"].to_dict()
+        # ---------------------------------------------------------
 
         # 5. Formatear porcentajes para la vista principal
         df_resumen_display = df_resumen.copy()
