@@ -634,5 +634,4 @@ def render_informe_03():
 
         hide_index=True
 
-    ) 
-
+    )
