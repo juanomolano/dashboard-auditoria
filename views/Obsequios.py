@@ -152,21 +152,79 @@ def render_informe_01():
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ---------------------------------------------------------
-    # RESUMEN CONSOLIDADO POR ALMACÉN (NOVEDADES TIENDA)
+    # RESUMEN CONSOLIDADO POR ALMACÉN (% NACIONAL ACUMULADO)
     # ---------------------------------------------------------
     if not df_filtered.empty:
         st.markdown("##### 📊 Consolidado de Novedades de Obsequios por Almacén")
         
-        # Agrupar directamente por tienda para tener el consolidado total sin mes
-        df_resumen = (
-            df_filtered.groupby(["REGIONAL", "CODALMACEN", "ALMACEN"])
-            .size()
-            .reset_index(name="Novedades Tienda")
-            .sort_values(by="Novedades Tienda", ascending=False)
-        )
+        df_calc = df_filtered.copy()
         
+        # Asignar un período por defecto si no viene columna AÑO_MES
+        if "AÑO_MES" not in df_calc.columns or df_calc["AÑO_MES"].isna().all():
+            df_calc["AÑO_MES"] = "PERIODO_UNICO"
+
+        # 1. Agrupar conteo de novedades por tienda y por cada mes
+        df_mensual = (
+            df_calc.groupby(["AÑO_MES", "REGIONAL", "CODALMACEN", "ALMACEN"])
+            .size()
+            .reset_index(name="Novedades_Mes")
+        )
+
+        # 2. Calcular el Total Nacional por cada Mes individual
+        totales_mes = (
+            df_mensual.groupby("AÑO_MES")["Novedades_Mes"]
+            .sum()
+            .reset_index(name="Total_Nacional_Mes")
+        )
+
+        # 3. Cruzar totales nacionales y sacar el % de la tienda en ese mes específico
+        df_mensual = pd.merge(df_mensual, totales_mes, on="AÑO_MES", how="left")
+        df_mensual["Pct_Nacional_Mes"] = (
+            df_mensual["Novedades_Mes"] / df_mensual["Total_Nacional_Mes"]
+        ) * 100
+
+        # 4. Consolidar por Tienda: Sumar novedades totales y la suma de porcentajes mensuales
+        df_resumen = (
+            df_mensual.groupby(["REGIONAL", "CODALMACEN", "ALMACEN"])
+            .agg(
+                Novedades_Tienda=("Novedades_Mes", "sum"),
+                Pct_Acumulado=("Pct_Nacional_Mes", "sum")
+            )
+            .reset_index()
+            .sort_values(by="Novedades_Tienda", ascending=False)
+        )
+
+        # 5. Formatear la columna de porcentaje para mostrarla limpia
+        df_resumen_display = df_resumen.copy()
+        df_resumen_display["% Participación Nacional"] = (
+            df_resumen_display["Pct_Acumulado"].apply(lambda x: f"{x:.2f}%")
+        )
+        df_resumen_display.rename(columns={"Novedades_Tienda": "Novedades Tienda"}, inplace=True)
+
+        # 6. Añadir la Fila Final de TOTAL GENERAL al final de la tabla
+        total_novedades = df_resumen["Novedades_Tienda"].sum()
+        fila_total = pd.DataFrame([{
+            "REGIONAL": "TOTAL GENERAL",
+            "CODALMACEN": "-",
+            "ALMACEN": "NACIONAL",
+            "Novedades Tienda": total_novedades,
+            "% Participación Nacional": "-"
+        }])
+
+        df_final_resumen = pd.concat([
+            df_resumen_display[["REGIONAL", "CODALMACEN", "ALMACEN", "Novedades Tienda", "% Participación Nacional"]],
+            fila_total
+        ], ignore_index=True)
+
         st.dataframe(
-            df_resumen,
+            df_final_resumen,
+            column_config={
+                "REGIONAL": "REGIONAL",
+                "CODALMACEN": "CODALMACEN",
+                "ALMACEN": "ALMACEN",
+                "Novedades Tienda": st.column_config.NumberColumn("Novedades Tienda", format="%d"),
+                "% Participación Nacional": "% Participación Nacional"
+            },
             use_container_width=True,
             hide_index=True
         )
