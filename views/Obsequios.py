@@ -2,20 +2,15 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# Configuración de paleta corporativa
-COLOR_PRIMARY = "#1E3A8A"      # Azul marino profundo
-COLOR_SECONDARY = "#3B82F6"    # Azul corporativo
-COLOR_ACCENT = "#D97706"       # Ámbar/Naranja sobrio para alertas
-COLOR_NEUTRAL_DARK = "#1F2937" # Gris oscuro
-COLOR_BG_CARD = "#F9FAFB"      # Fondo claro para tarjetas
+COLOR_PRIMARY = "#1E3A8A"
+COLOR_SECONDARY = "#3B82F6"
+COLOR_ACCENT = "#D97706"
+COLOR_NEUTRAL_DARK = "#1F2937"
+COLOR_BG_CARD = "#F9FAFB"
 
 @st.cache_data(ttl=60)
 def load_data_obsequios():
-    """
-    Carga dinámicamente la hoja pública de Google Sheets en formato CSV.
-    """
     url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQFE4HoACCEcqz8lU5SNHk2DFdFu_ZCjIITexvEJHVEzy65ClESgYik6T5thCe-zQ/pub?output=csv"
-    
     try:
         df = pd.read_csv(url, encoding="utf-8")
         df.columns = df.columns.str.strip()
@@ -33,42 +28,45 @@ def load_data_obsequios():
         st.error(f"⚠️ No se pudo conectar al archivo de Google Sheets: {e}")
         return pd.DataFrame()
 
+@st.cache_data(ttl=60)
+def load_metas_nacionales():
+    """
+    Carga la tabla de Totales Nacionales por Mes. 
+    Si tienes la URL del CSV de esa segunda tabla de Google Sheets, reemplázala aquí.
+    """
+    # Si publicaste la segunda hoja en CSV, pon la URL aquí:
+    url_metas = "" 
+    
+    if url_metas:
+        try:
+            df_metas = pd.read_csv(url_metas)
+            df_metas.columns = df_metas.columns.str.strip().str.upper()
+            df_metas.rename(columns={"MES": "AÑO_MES", "TOTAL_NACIONAL": "Total_Nacional_Mes"}, inplace=True)
+            df_metas["AÑO_MES"] = df_metas["AÑO_MES"].astype(str)
+            return df_metas
+        except Exception:
+            pass
+            
+    # Diccionario de respaldo según los datos de tu imagen
+    data_metas = {
+        "AÑO_MES": ["2025-12", "2026-01", "2026-02", "2026-03", "2026-04", "2026-05", "2026-06", "2026-07"],
+        "Total_Nacional_Mes": [1000, 1000, 2000, 3000, 3000, 3000, 3000, 3000]
+    }
+    return pd.DataFrame(data_metas)
+
 def render_informe_01():
-    # 🎨 Estilos CSS para Métricas y Encabezados
     st.markdown(
         """
         <style>
-            h1 {
-                font-size: 1.8rem !important;
-                padding-bottom: 0px !important;
-                margin-bottom: 10px !important;
-            }
-            [data-testid="stMetricLabel"] {
-                font-size: 0.8rem !important;
-                white-space: normal !important;
-                word-wrap: break-word !important;
-                overflow: visible !important;
-                text-overflow: clip !important;
-                line-height: 1.2 !important;
-            }
-            [data-testid="stMetricValue"] {
-                font-size: 1.05rem !important;
-                white-space: normal !important;
-                word-wrap: break-word !important;
-            }
-            div[data-testid="stMetric"] {
-                background-color: #F8FAFC;
-                padding: 10px 12px;
-                border-radius: 8px;
-                border: 1px solid #E2E8F0;
-                min-height: 90px;
-            }
+            h1 { font-size: 1.8rem !important; margin-bottom: 10px !important; }
+            [data-testid="stMetricLabel"] { font-size: 0.8rem !important; line-height: 1.2 !important; }
+            [data-testid="stMetricValue"] { font-size: 1.05rem !important; }
+            div[data-testid="stMetric"] { background-color: #F8FAFC; padding: 10px 12px; border-radius: 8px; border: 1px solid #E2E8F0; min-height: 90px; }
         </style>
         """,
         unsafe_allow_html=True
     )
 
-    # Encabezado
     st.title("🎁 Seguimiento Entrega de Obsequios Valor $1")
     
     st.markdown(
@@ -88,12 +86,13 @@ def render_informe_01():
     )
     
     df = load_data_obsequios()
+    df_metas = load_metas_nacionales()
     
     if df.empty:
         st.warning("No se encontraron registros para mostrar.")
         return
 
-    # Filtros Interactivos
+    # Filtros
     st.subheader("🔍 Filtros de Auditoría")
     col_f1, col_f2, col_f3 = st.columns(3)
     
@@ -112,7 +111,6 @@ def render_informe_01():
         else:
             selected_meses = []
 
-    # Aplicación de Filtros
     df_filtered = df.copy()
     
     if selected_regional:
@@ -126,7 +124,7 @@ def render_informe_01():
 
     st.markdown("---")
 
-    # KPIs Globales
+    # KPIs
     total_incumplimientos = len(df_filtered)
     total_almacenes = df_filtered["CODALMACEN"].nunique() if "CODALMACEN" in df_filtered.columns else 0
     total_facturas = df_filtered["Factura"].nunique() if "Factura" in df_filtered.columns else 0
@@ -145,45 +143,40 @@ def render_informe_01():
     st.markdown("<br>", unsafe_allow_html=True)
 
     # ---------------------------------------------------------
-    # RESUMEN CONSOLIDADO POR ALMACÉN (% NACIONAL ACUMULADO)
+    # RESUMEN CONSOLIDADO CON CRUCE DE TOTALES NACIONALES
     # ---------------------------------------------------------
     if not df_filtered.empty:
         st.markdown("##### 📊 Consolidado de Novedades de Obsequios por Almacén")
         
         df_calc = df_filtered.copy()
-        
         if "AÑO_MES" not in df_calc.columns or df_calc["AÑO_MES"].isna().all():
             df_calc["AÑO_MES"] = "PERIODO_UNICO"
 
-        # 1. Agrupar conteo de novedades por tienda y por cada mes
+        # 1. Agrupar novedades de la tienda por mes
         df_mensual = (
             df_calc.groupby(["AÑO_MES", "REGIONAL", "CODALMACEN", "ALMACEN"])
             .size()
             .reset_index(name="Novedades_Mes")
         )
 
-        # 2. Calcular el Total Nacional por cada Mes individual
-        totales_mes = (
-            df_mensual.groupby("AÑO_MES")["Novedades_Mes"]
-            .sum()
-            .reset_index(name="Total_Nacional_Mes")
-        )
+        # 2. CRUCE CON LA TABLA DE TOTALES NACIONALES EXTERNA
+        df_mensual = pd.merge(df_mensual, df_metas, on="AÑO_MES", how="left")
+        
+        # En caso de que un mes no exista en la tabla de metas, evitamos la división por cero asignando 1
+        df_mensual["Total_Nacional_Mes"] = df_mensual["Total_Nacional_Mes"].fillna(1)
 
-        # 3. Cruzar totales nacionales y sacar el % de la tienda en ese mes específico
-        df_mensual = pd.merge(df_mensual, totales_mes, on="AÑO_MES", how="left")
+        # 3. Regla de tres por mes: (Novedades Tienda Mes / Total Nacional Oficial Mes) * 100
         df_mensual["Pct_Nacional_Mes"] = (
             df_mensual["Novedades_Mes"] / df_mensual["Total_Nacional_Mes"]
         ) * 100
 
-        # =========================================================
-        # 🧪 BLOQUE DE VALIDACIÓN MES A MES (TIENDA S12 - TITAN)
-        # =========================================================
+        # Bloque de validación interactivo para la tienda Titán (S12)
         with st.expander("🔍 VALIDADOR DE CÁLCULO MES A MES (CLICK PARA AUDITAR S12 - TITAN)"):
-            st.write("### Desglose Mensual para S12 - CLASSIC CC TITAN L120:")
+            st.write("### Desglose Mensual para S12 - CLASSIC CC TITAN L120 con Totales Oficiales:")
             df_titan_test = df_mensual[df_mensual["CODALMACEN"].astype(str).str.contains("S12", na=False)].copy()
             
             if not df_titan_test.empty:
-                df_titan_test["% Mes Formateado"] = df_titan_test["Pct_Nacional_Mes"].apply(lambda x: f"{x:.2f}%")
+                df_titan_test["% Mes Formateado"] = df_titan_test["Pct_Nacional_Mes"].apply(lambda x: f"{x:.4f}%")
                 
                 st.dataframe(
                     df_titan_test[["AÑO_MES", "Novedades_Mes", "Total_Nacional_Mes", "% Mes Formateado"]],
@@ -196,9 +189,8 @@ def render_informe_01():
                 st.info(f"📌 **Suma Total Casos Titán:** {suma_casos} | **Suma Acumulada Porcentajes Mensuales:** {suma_pct:.2f}%")
             else:
                 st.warning("No se encontraron registros de la tienda S12 con los filtros seleccionados.")
-        # =========================================================
 
-        # 4. Consolidar por Tienda: Sumar novedades totales y la suma de porcentajes mensuales
+        # 4. Consolidar por Tienda
         df_resumen = (
             df_mensual.groupby(["REGIONAL", "CODALMACEN", "ALMACEN"])
             .agg(
@@ -209,14 +201,14 @@ def render_informe_01():
             .sort_values(by="Novedades_Tienda", ascending=False)
         )
 
-        # 5. Formatear la columna de porcentaje
+        # 5. Formatear porcentajes para la vista principal
         df_resumen_display = df_resumen.copy()
         df_resumen_display["% Participación Nacional"] = (
             df_resumen_display["Pct_Acumulado"].apply(lambda x: f"{x:.2f}%")
         )
         df_resumen_display.rename(columns={"Novedades_Tienda": "Novedades Tienda"}, inplace=True)
 
-        # 6. Añadir Fila Final de TOTAL GENERAL
+        # 6. Fila final de Total General
         total_novedades = df_resumen["Novedades_Tienda"].sum()
         fila_total = pd.DataFrame([{
             "REGIONAL": "TOTAL GENERAL",
@@ -245,9 +237,7 @@ def render_informe_01():
         )
         st.markdown("<br>", unsafe_allow_html=True)
 
-    # ---------------------------------------------------------
-    # VISUALIZACIONES Y GRÁFICOS
-    # ---------------------------------------------------------
+    # Visualizaciones y Gráficos
     col_chart1, col_chart2 = st.columns([1.1, 0.9])
 
     with col_chart1:
@@ -318,9 +308,7 @@ def render_informe_01():
         else:
             st.info("Sin datos para generar la gráfica.")
 
-    # ---------------------------------------------------------
-    # TENDENCIA TEMPORAL MENSUAL
-    # ---------------------------------------------------------
+    # Tendencia Temporal
     st.markdown("##### 📈 Tendencia Mensual de Incumplimiento por Fecha de Factura")
     if "AÑO_MES" in df_filtered.columns and not df_filtered.empty:
         df_trend = (
@@ -350,9 +338,7 @@ def render_informe_01():
         )
         st.plotly_chart(fig_trend, use_container_width=True)
 
-    # ---------------------------------------------------------
-    # TABLA DE DETALLE AUDITABLE
-    # ---------------------------------------------------------
+    # Tabla Detalle
     st.markdown("---")
     st.subheader("📋 Detalle Auditable de Registros")
     st.write("Filtra y exporta los casos para enviar a las Jefaturas Regionales:")
