@@ -14,7 +14,7 @@ def load_data_documentos():
     """
     Carga dinámicamente la hoja pública de Google Sheets en formato CSV.
     """
-    url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQNB6Y3yTcF0o7QFhFoLMOULPZXcVl84MahhUPvHcWyxDjEgQbWKeGTqqi0Y5WymQ/pub?gid=646635232&single=true&output=csv"
+    url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQNB6Y3yTcF0o7QFhFoLMOULPZXcVl84MahhUPvHcWyxDjEgQbWKeGTqqi0Y5WymQ/pub?gid=1260662215&single=true&output=csv"
     
     try:
         df = pd.read_csv(url, encoding="utf-8")
