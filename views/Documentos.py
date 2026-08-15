@@ -2,34 +2,35 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# Paleta corporativa sobria
-COLOR_PRIMARY = "#1E3A8A"
-COLOR_SECONDARY = "#3B82F6"
-COLOR_ACCENT = "#D97706"
-COLOR_NEUTRAL_DARK = "#1F2937"
-COLOR_BG_CARD = "#F9FAFB"
+# Configuración de paleta corporativa sobria
+COLOR_PRIMARY = "#1E3A8A"      # Azul marino profundo
+COLOR_SECONDARY = "#2563EB"    # Azul corporativo
+COLOR_ACCENT = "#D97706"       # Ámbar/Naranja sobrio para alertas
+COLOR_NEUTRAL_DARK = "#1F2937" # Gris oscuro
+COLOR_BG_CARD = "#F9FAFB"      # Fondo claro para tarjetas
 
 @st.cache_data(ttl=60)
 def load_data_documentos():
+    """
+    Carga dinámicamente la hoja pública de Google Sheets en formato CSV.
+    """
     url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQNB6Y3yTcF0o7QFhFoLMOULPZXcVl84MahhUPvHcWyxDjEgQbWKeGTqqi0Y5WymQ/pub?gid=1260662215&single=true&output=csv"
+    
     try:
         df = pd.read_csv(url, encoding="utf-8")
         df.columns = df.columns.str.strip()
         
-        # Eliminar filas totalmente vacías
-        df = df.dropna(how="all")
-        
-        # Unificar nombre de la columna ALMACEN si viene como NOMBRE_ALMACEN
-        if "NOMBRE_ALMACEN" in df.columns and "ALMACEN" not in df.columns:
-            df.rename(columns={"NOMBRE_ALMACEN": "ALMACEN"}, inplace=True)
-            
+        # Conversión de fechas especificando día primero (DD/MM/YYYY)
         if "FECHAFACTURA" in df.columns:
-            df["FECHAFACTURA_DT"] = pd.to_datetime(df["FECHAFACTURA"], dayfirst=True, errors="coerce")
-            df["FECHA_MOSTRAR"] = df["FECHAFACTURA_DT"].dt.strftime("%d/%m/%Y")
-            df["AÑO_MES"] = df["FECHAFACTURA_DT"].dt.to_period("M").astype(str)
+            df["FECHA_DT"] = pd.to_datetime(df["FECHAFACTURA"], dayfirst=True, errors="coerce")
+            df["FECHA_MOSTRAR"] = df["FECHA_DT"].dt.strftime("%d/%m/%Y")
+            df["AÑO_MES"] = df["FECHA_DT"].dt.to_period("M")
             
         if "CODALMACEN" in df.columns:
-            df["CODALMACEN"] = df["CODALMACEN"].astype(str).str.replace(".0", "", regex=False).str.strip()
+            df["CODALMACEN"] = df["CODALMACEN"].astype(str)
+            
+        if "IDENTIFICACION" in df.columns:
+            df["IDENTIFICACION"] = df["IDENTIFICACION"].astype(str)
             
         return df
     except Exception as e:
@@ -37,43 +38,74 @@ def load_data_documentos():
         return pd.DataFrame()
 
 def render_informe_03():
+    # 🎨 ESTILOS CSS PARA EVITAR TEXTOS CORTADOS Y PROPORCIONAR METRICAS
     st.markdown(
         """
         <style>
-            h1 { font-size: 1.8rem !important; margin-bottom: 10px !important; }
-            [data-testid="stMetricLabel"] { font-size: 0.8rem !important; line-height: 1.2 !important; }
-            [data-testid="stMetricValue"] { font-size: 1.05rem !important; }
-            div[data-testid="stMetric"] { background-color: #F8FAFC; padding: 10px 12px; border-radius: 8px; border: 1px solid #E2E8F0; min-height: 90px; }
+            h1 {
+                font-size: 1.8rem !important;
+                padding-bottom: 0px !important;
+                margin-bottom: 10px !important;
+            }
+            /* Permite salto de línea en los títulos de las tarjetas */
+            [data-testid="stMetricLabel"] {
+                font-size: 0.8rem !important;
+                white-space: normal !important;
+                word-wrap: break-word !important;
+                overflow: visible !important;
+                text-overflow: clip !important;
+                line-height: 1.2 !important;
+            }
+            /* Muestra completos los textos de los almacenes (sin ...) */
+            [data-testid="stMetricValue"] {
+                font-size: 1.05rem !important;
+                white-space: normal !important;
+                word-wrap: break-word !important;
+            }
+            /* Contenedor estético para tarjetas de KPIs */
+            div[data-testid="stMetric"] {
+                background-color: #F8FAFC;
+                padding: 10px 12px;
+                border-radius: 8px;
+                border: 1px solid #E2E8F0;
+                min-height: 90px;
+            }
         </style>
         """,
         unsafe_allow_html=True
     )
 
-    st.title("📄 Control por Tipo de Documento")
+    # ---------------------------------------------------------
+    # ENCABEZADO Y TEXTOS DE CONTEXTO
+    # ---------------------------------------------------------
+    st.title("🪪 Control Creación Tipo de Documento")
     
     st.markdown(
         f"""
         <div style="background-color: {COLOR_BG_CARD}; padding: 18px; border-radius: 8px; border-left: 5px solid {COLOR_PRIMARY}; margin-bottom: 12px;">
             <p style="margin: 0; font-size: 14px; color: {COLOR_NEUTRAL_DARK};">
-                <strong>📌 Objetivo:</strong> Supervisar y auditar la totalidad de transacciones registradas por tipo de documento a nivel nacional, garantizando el cumplimiento de los parámetros normativos, la correcta clasificación de comprobantes y la trazabilidad contable de los puntos de venta.
+                <strong>📌 Objetivo:</strong> Auditar la calidad e integridad de la base de datos de clientes mediante la identificación de inconsistencias, tipologías de documentos erróneas o registros incompletos realizados durante el proceso de facturación en las tiendas.
             </p>
         </div>
         <div style="background-color: #FEF3C7; padding: 18px; border-radius: 8px; border-left: 5px solid {COLOR_ACCENT}; margin-bottom: 25px;">
             <p style="margin: 0; font-size: 14px; color: #92400E;">
-                <strong>⚡ Acción Correctiva:</strong> Se remitirá el informe detallado a la gestión regional y administradores de tienda para la verificación inmediata de soportes físicos y digitales. De identificar inconsistencias o registros erróneos, se solicitará la justificación formal del responsable.
+                <strong>⚡ Acción Correctiva:</strong> Este reporte consolidado se distribuye a las Jefaturas Regionales para proceder con la depuración y corrección de los datos maestros en el sistema. Asimismo, a los líderes de tienda se les genera un reporte semanal cada lunes, en el cual se identifican minuciosamente estos errores para que ejecuten la debida depuración y corrección de los datos de los clientes, dando cumplimiento al respectivo procedimiento de actualización.
             </p>
         </div>
         """,
         unsafe_allow_html=True
     )
     
+    # Carga de datos
     df = load_data_documentos()
     
     if df.empty:
         st.warning("No se encontraron registros para mostrar.")
         return
 
-    # Filtros Identicos a Obsequios
+    # ---------------------------------------------------------
+    # FILTROS INTERACTIVOS LIMPIOS
+    # ---------------------------------------------------------
     st.subheader("🔍 Filtros de Auditoría")
     col_f1, col_f2, col_f3 = st.columns(3)
     
@@ -87,11 +119,12 @@ def render_informe_03():
         
     with col_f3:
         if "AÑO_MES" in df.columns and not df["AÑO_MES"].isna().all():
-            meses_disponibles = sorted(df["AÑO_MES"].dropna().unique().tolist())
+            meses_disponibles = sorted(df["AÑO_MES"].dropna().unique().astype(str).tolist())
             selected_meses = st.multiselect("Filtrar por Meses", options=meses_disponibles, placeholder="Todos los Meses")
         else:
             selected_meses = []
 
+    # Aplicación de Filtros
     df_filtered = df.copy()
     
     if selected_regional:
@@ -101,34 +134,48 @@ def render_informe_03():
         df_filtered = df_filtered[df_filtered["ALMACEN"].isin(selected_almacen)]
         
     if selected_meses and "AÑO_MES" in df_filtered.columns:
-        df_filtered = df_filtered[df_filtered["AÑO_MES"].isin(selected_meses)]
+        df_filtered = df_filtered[df_filtered["AÑO_MES"].astype(str).isin(selected_meses)]
 
     st.markdown("---")
 
-    # KPIs
-    total_documentos = len(df_filtered)
-    total_almacenes = df_filtered["CODALMACEN"].nunique() if "CODALMACEN" in df_filtered.columns else 0
-    total_facturas = df_filtered["NROFACTURA"].nunique() if "NROFACTURA" in df_filtered.columns else 0
+    # ---------------------------------------------------------
+    # TARJETAS DE KPIS GLOBALES
+    # ---------------------------------------------------------
+    total_casos = len(df_filtered)
     
-    top_regional_name = (
+    top_doc_error = (
+        df_filtered["DOCUMENTO"].value_counts().index[0] 
+        if "DOCUMENTO" in df_filtered.columns and not df_filtered.empty 
+        else "N/A"
+    )
+    
+    top_regional = (
         df_filtered["REGIONAL"].value_counts().index[0] 
         if "REGIONAL" in df_filtered.columns and not df_filtered.empty 
         else "N/A"
     )
+    
+    top_almacen = (
+        df_filtered["ALMACEN"].value_counts().index[0] 
+        if "ALMACEN" in df_filtered.columns and not df_filtered.empty 
+        else "N/A"
+    )
 
     kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-    kpi1.metric("Total Documentos Registrados", f"{total_documentos:,}")
-    kpi2.metric("Total Facturas Auditadas", f"{total_facturas:,}")
-    kpi3.metric("Almacenes con Registro", f"{total_almacenes:,}")
-    kpi4.metric("Regional Crítica", str(top_regional_name))
+    kpi1.metric("Facturas Auditadas", f"{total_casos:,}")
+    kpi2.metric("Tipo Doc. Principal Error", str(top_doc_error))
+    kpi3.metric("Regional Crítica", str(top_regional))
+    kpi4.metric("Almacén Reincidente", str(top_almacen))
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Visualizaciones y Gráficos
+    # ---------------------------------------------------------
+    # VISUALIZACIONES (DISPERSIÓN CATEGÓRICA Y EMBUDO JERÁRQUICO)
+    # ---------------------------------------------------------
     col_chart1, col_chart2 = st.columns([1.1, 0.9])
 
     with col_chart1:
-        st.markdown("##### 🏪 Top 10 Almacenes con Mayor Número de Casos")
+        st.markdown("##### 📍 Top 10 Almacenes Críticos (Gráfico de Marcadores)")
         if "ALMACEN" in df_filtered.columns and not df_filtered.empty:
             top_almacenes = (
                 df_filtered.groupby(["CODALMACEN", "ALMACEN"])
@@ -139,109 +186,175 @@ def render_informe_03():
             )
             top_almacenes["Etiqueta"] = top_almacenes["CODALMACEN"].astype(str) + " - " + top_almacenes["ALMACEN"]
             
-            max_val = top_almacenes["Cantidad"].max() if not top_almacenes.empty else 10
-            
-            fig_bar = px.bar(
+            fig_dot = px.scatter(
                 top_almacenes,
                 x="Cantidad",
                 y="Etiqueta",
-                orientation="h",
                 text="Cantidad",
+                size="Cantidad",
                 color_discrete_sequence=[COLOR_PRIMARY]
             )
-            fig_bar.update_traces(textposition="outside")
-            fig_bar.update_layout(
+            fig_dot.update_traces(
+                marker=dict(size=16),
+                textposition="middle right"
+            )
+            
+            for _, row in top_almacenes.iterrows():
+                fig_dot.add_shape(
+                    type="line",
+                    x0=0, y0=row["Etiqueta"],
+                    x1=row["Cantidad"], y1=row["Etiqueta"],
+                    line=dict(color="#CBD5E1", width=1, dash="dot")
+                )
+
+            fig_dot.update_layout(
                 xaxis_title="Cantidad de Registros",
                 yaxis_title="",
-                xaxis=dict(range=[0, max_val * 1.18]),
-                margin=dict(l=0, r=60, t=20, b=20),
+                margin=dict(l=0, r=40, t=20, b=20),
                 height=380,
                 paper_bgcolor="rgba(0,0,0,0)",
                 plot_bgcolor="rgba(0,0,0,0)"
             )
-            st.plotly_chart(fig_bar, use_container_width=True)
+            st.plotly_chart(fig_dot, use_container_width=True)
         else:
             st.info("Sin datos para generar la gráfica.")
 
     with col_chart2:
-        st.markdown("##### 🗺️ Participación por Regional")
+        st.markdown("##### 🔻 Concentración por Regional (Gráfico de Embudo)")
         if "REGIONAL" in df_filtered.columns and not df_filtered.empty:
             df_regional = df_filtered["REGIONAL"].value_counts().reset_index()
             df_regional.columns = ["REGIONAL", "Cantidad"]
             
-            fig_pie = px.pie(
+            fig_funnel = px.funnel(
                 df_regional,
-                names="REGIONAL",
+                x="Cantidad",
+                y="REGIONAL",
+                color_discrete_sequence=px.colors.sequential.Blues_r
+            )
+            fig_funnel.update_layout(
+                showlegend=False,
+                margin=dict(l=10, r=10, t=20, b=20),
+                height=380,
+                paper_bgcolor="rgba(0,0,0,0)"
+            )
+            st.plotly_chart(fig_funnel, use_container_width=True)
+        else:
+            st.info("Sin datos para generar la gráfica.")
+
+    # ---------------------------------------------------------
+    # SEGUNDA FILA DE VISUALIZACIONES (TIPO DE DOCUMENTO Y TENDENCIA)
+    # ---------------------------------------------------------
+    col_chart3, col_chart4 = st.columns([0.8, 1.2])
+
+    with col_chart3:
+        st.markdown("##### 🪪 Distribución por Tipo de Documento")
+        if "DOCUMENTO" in df_filtered.columns and not df_filtered.empty:
+            df_doc = df_filtered["DOCUMENTO"].value_counts().reset_index()
+            df_doc.columns = ["DOCUMENTO", "Cantidad"]
+            
+            fig_pie = px.pie(
+                df_doc,
+                names="DOCUMENTO",
                 values="Cantidad",
                 hole=0.45,
-                color_discrete_sequence=px.colors.qualitative.Bold
+                color_discrete_sequence=px.colors.sequential.Tealgrn_r
             )
-            fig_pie.update_traces(textinfo="percent", textposition="inside")
+            fig_pie.update_traces(textinfo="percent+label")
             fig_pie.update_layout(
-                showlegend=True,
-                legend=dict(
-                    orientation="v",
-                    yanchor="middle",
-                    y=0.5,
-                    xanchor="left",
-                    x=1.02,
-                    font=dict(size=11, color=COLOR_NEUTRAL_DARK)
-                ),
-                margin=dict(l=10, r=10, t=10, b=10),
-                height=375,
+                showlegend=False,
+                margin=dict(l=10, r=10, t=20, b=20),
+                height=300,
                 paper_bgcolor="rgba(0,0,0,0)"
             )
             st.plotly_chart(fig_pie, use_container_width=True)
         else:
             st.info("Sin datos para generar la gráfica.")
 
-    # Tendencia Temporal
-    st.markdown("##### 📈 Tendencia Mensual por Fecha de Factura")
-    if "AÑO_MES" in df_filtered.columns and not df_filtered.empty:
-        df_trend = (
-            df_filtered.groupby("AÑO_MES")
-            .size()
-            .reset_index(name="Cantidad")
-        )
-        df_trend["AÑO_MES_STR"] = df_trend["AÑO_MES"].astype(str)
-        
-        fig_trend = px.line(
-            df_trend,
-            x="AÑO_MES_STR",
-            y="Cantidad",
-            markers=True,
-            text="Cantidad",
-            line_shape="spline",
-            color_discrete_sequence=[COLOR_ACCENT]
-        )
-        fig_trend.update_traces(textposition="top center")
-        fig_trend.update_layout(
-            xaxis_title="Mes de Facturación",
-            yaxis_title="Nº de Casos Registrados",
-            height=320,
-            margin=dict(l=0, r=20, t=30, b=20),
-            paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)"
-        )
-        st.plotly_chart(fig_trend, use_container_width=True)
+    with col_chart4:
+        st.markdown("##### 📈 Comportamiento Mensual de Inconsistencias")
+        if "AÑO_MES" in df_filtered.columns and not df_filtered.empty:
+            df_trend = (
+                df_filtered.groupby("AÑO_MES")
+                .size()
+                .reset_index(name="Cantidad")
+            )
+            df_trend["AÑO_MES_STR"] = df_trend["AÑO_MES"].astype(str)
+            
+            fig_area = px.area(
+                df_trend,
+                x="AÑO_MES_STR",
+                y="Cantidad",
+                markers=True,
+                text="Cantidad",
+                color_discrete_sequence=[COLOR_SECONDARY]
+            )
+            fig_area.update_traces(textposition="top center")
+            fig_area.update_layout(
+                xaxis_title="Mes",
+                yaxis_title="Nº de Casos",
+                height=300,
+                margin=dict(l=0, r=20, t=30, b=20),
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)"
+            )
+            st.plotly_chart(fig_area, use_container_width=True)
 
-    # Tabla Detalle
+    # ---------------------------------------------------------
+    # TABLA CONSOLIDADA POR ALMACÉN Y MES + VALIDADOR INTERACTIVO
+    # ---------------------------------------------------------
+    st.markdown("---")
+    st.subheader("📊 Consolidado de Novedades por Almacén")
+    
+    if not df_filtered.empty and "CODALMACEN" in df_filtered.columns and "AÑO_MES" in df_filtered.columns:
+        df_pivot_base = df_filtered.copy()
+        df_pivot_base["AÑO_MES_STR"] = df_pivot_base["AÑO_MES"].astype(str)
+        col_count = "Factura" if "Factura" in df_pivot_base.columns else df_pivot_base.columns[0]
+
+        df_pivot = df_pivot_base.pivot_table(
+            index=["REGIONAL", "CODALMACEN", "ALMACEN"],
+            columns="AÑO_MES_STR",
+            values=col_count,
+            aggfunc="count",
+            fill_value=0
+        ).reset_index()
+
+        meses_cols = [c for c in df_pivot.columns if c not in ["REGIONAL", "CODALMACEN", "ALMACEN"]]
+        df_pivot["Total General"] = df_pivot[meses_cols].sum(axis=1)
+        df_pivot = df_pivot.sort_values(by="Total General", ascending=False)
+
+        st.dataframe(df_pivot, use_container_width=True, hide_index=True)
+
+        totales_mes = {col: int(df_pivot[col].sum()) for col in meses_cols}
+        total_acumulado = int(df_pivot["Total General"].sum())
+
+        with st.expander("🔎 Ver Validador Interactivo de Totales"):
+            val_col1, val_col2 = st.columns(2)
+            with val_col1:
+                st.write("**Totales Consolidados por Mes:**")
+                for mes in meses_cols:
+                    st.write(f"- **{mes}:** {totales_mes[mes]:,} registros")
+            with val_col2:
+                st.metric("Suma Total Auditada", f"{total_acumulado:,}")
+                if total_acumulado == len(df_filtered):
+                    st.success("✅ La suma del consolidado coincide perfectamente con el total de registros auditados.")
+                else:
+                    st.warning("⚠️ Hay registros sin fecha válida que no entraron en el desglose mensual.")
+
+    # ---------------------------------------------------------
+    # TABLA DE DETALLE AUDITABLE
+    # ---------------------------------------------------------
     st.markdown("---")
     st.subheader("📋 Detalle Auditable de Registros")
-    st.write("Filtra y exporta los casos para enviar a las Jefaturas Regionales:")
+    st.write("Facturas registradas con posible inconsistencia de tipo de documento:")
     
     df_tabla = df_filtered.copy()
     if "FECHA_MOSTRAR" in df_tabla.columns:
         df_tabla["FECHAFACTURA"] = df_tabla["FECHA_MOSTRAR"]
         
-    cols_display = [col for col in ["REGIONAL", "CODALMACEN", "ALMACEN", "FECHAFACTURA", "TIPODOCUMENTO", "NROFACTURA", "IDENTIFICACION", "NOMBRE_TERCERO", "SUBTOTAL", "TOTAL"] if col in df_tabla.columns]
-    
-    # Ordenar cronológicamente usando la columna datetime real
-    if "FECHAFACTURA_DT" in df_tabla.columns:
-        df_tabla = df_tabla.sort_values(by="FECHAFACTURA_DT", ascending=False)
+    cols_display = [col for col in ["REGIONAL", "CODALMACEN", "ALMACEN", "FECHAFACTURA", "Factura", "DOCUMENTO", "IDENTIFICACION", "NOMVENDEDOR"] if col in df_tabla.columns]
     
     st.dataframe(
-        df_tabla[cols_display],
+        df_tabla[cols_display].sort_values(by="FECHAFACTURA", ascending=False),
         use_container_width=True,
         hide_index=True
     )
