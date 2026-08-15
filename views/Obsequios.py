@@ -23,7 +23,7 @@ def load_data_obsequios():
         if "FECHAFACTURA" in df.columns:
             df["FECHAFACTURA_DT"] = pd.to_datetime(df["FECHAFACTURA"], dayfirst=True, errors="coerce")
             df["FECHA_MOSTRAR"] = df["FECHAFACTURA_DT"].dt.strftime("%d/%m/%Y")
-            df["AÑO_MES"] = df["FECHAFACTURA_DT"].dt.to_period("M")
+            df["AÑO_MES"] = df["FECHAFACTURA_DT"].dt.to_period("M").astype(str)
             
         if "CODALMACEN" in df.columns:
             df["CODALMACEN"] = df["CODALMACEN"].astype(str)
@@ -31,6 +31,24 @@ def load_data_obsequios():
         return df
     except Exception as e:
         st.error(f"⚠️ No se pudo conectar al archivo de Google Sheets: {e}")
+        return pd.DataFrame()
+
+@st.cache_data(ttl=60)
+def load_data_totales_nacionales():
+    """
+    Carga la hoja secundaria de Google Sheets con los Totales Nacionales por Mes.
+    """
+    url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQFE4HoACCEcqz8lU5SNHk2DFdFu_ZCjIITexvEJHVEzy65ClESgYik6T5thCe-zQ/pub?gid=1108466499&single=true&output=csv"
+    try:
+        df_totales = pd.read_csv(url, encoding="utf-8")
+        df_totales.columns = df_totales.columns.str.strip()
+        if "MES" in df_totales.columns:
+            df_totales["MES"] = df_totales["MES"].astype(str).str.strip()
+        if "TOTAL_NACIONAL" in df_totales.columns:
+            df_totales["TOTAL_NACIONAL"] = pd.to_numeric(df_totales["TOTAL_NACIONAL"], errors="coerce").fillna(0)
+        return df_totales
+    except Exception as e:
+        st.error(f"⚠️ No se pudo cargar la pestaña de totales nacionales: {e}")
         return pd.DataFrame()
 
 def render_informe_01():
@@ -91,6 +109,7 @@ def render_informe_01():
     
     # Carga de datos
     df = load_data_obsequios()
+    df_totales = load_data_totales_nacionales()
     
     if df.empty:
         st.warning("No se encontraron registros para mostrar.")
@@ -112,7 +131,7 @@ def render_informe_01():
         
     with col_f3:
         if "AÑO_MES" in df.columns and not df["AÑO_MES"].isna().all():
-            meses_disponibles = sorted(df["AÑO_MES"].dropna().unique().astype(str).tolist())
+            meses_disponibles = sorted(df["AÑO_MES"].dropna().unique().tolist())
             selected_meses = st.multiselect("Filtrar por Meses", options=meses_disponibles, placeholder="Todos los Meses")
         else:
             selected_meses = []
@@ -127,7 +146,7 @@ def render_informe_01():
         df_filtered = df_filtered[df_filtered["ALMACEN"].isin(selected_almacen)]
         
     if selected_meses and "AÑO_MES" in df_filtered.columns:
-        df_filtered = df_filtered[df_filtered["AÑO_MES"].astype(str).isin(selected_meses)]
+        df_filtered = df_filtered[df_filtered["AÑO_MES"].isin(selected_meses)]
 
     st.markdown("---")
 
@@ -150,6 +169,46 @@ def render_informe_01():
     kpi4.metric("Regional Crítica", str(top_regional_name))
 
     st.markdown("<br>", unsafe_allow_html=True)
+
+    # ---------------------------------------------------------
+    # RESUMEN DE IMPACTO POR TIENDA (CRUCE CON TOTAL NACIONAL)
+    # ---------------------------------------------------------
+    if not df_filtered.empty and not df_totales.empty:
+        st.markdown("##### 📊 Porcentaje de Impacto por Almacén sobre Totales Nacionales")
+        
+        # Agrupar hallazgos por Almacén y Mes
+        df_resumen = (
+            df_filtered.groupby(["CODALMACEN", "ALMACEN", "REGIONAL", "AÑO_MES"])
+            .size()
+            .reset_index(name="Novedades_Tienda")
+        )
+        
+        # Cruzar con Totales Nacionales
+        df_resumen = df_resumen.merge(df_totales, left_on="AÑO_MES", right_on="MES", how="left")
+        
+        # Calcular Porcentaje de Impacto
+        df_resumen["TOTAL_NACIONAL"] = df_resumen["TOTAL_NACIONAL"].fillna(0)
+        df_resumen["%_Impacto_Nacional"] = df_resumen.apply(
+            lambda r: (r["Novedades_Tienda"] / r["TOTAL_NACIONAL"] * 100) if r["TOTAL_NACIONAL"] > 0 else 0.0,
+            axis=1
+        )
+        
+        # Dar formato visual
+        df_resumen["% Impacto Formateado"] = df_resumen["%_Impacto_Nacional"].apply(lambda x: f"{x:.2f}%")
+        
+        st.dataframe(
+            df_resumen[["REGIONAL", "CODALMACEN", "ALMACEN", "AÑO_MES", "Novedades_Tienda", "TOTAL_NACIONAL", "% Impacto Formateado"]]
+            .rename(columns={
+                "AÑO_MES": "Mes",
+                "Novedades_Tienda": "Novedades Tienda",
+                "TOTAL_NACIONAL": "Total Nacional Mes",
+                "% Impacto Formateado": "% Impacto Nacional"
+            })
+            .sort_values(by=["Novedades Tienda"], ascending=False),
+            use_container_width=True,
+            hide_index=True
+        )
+        st.markdown("<br>", unsafe_allow_html=True)
 
     # ---------------------------------------------------------
     # VISUALIZACIONES Y GRÁFICOS
@@ -203,10 +262,8 @@ def render_informe_01():
                 names="REGIONAL",
                 values="Cantidad",
                 hole=0.45,
-                # 🎨 Paleta multicolor variada pero corporativa
                 color_discrete_sequence=px.colors.qualitative.Bold
             )
-            # 🛠️ Tamaño mediano ideal (height=375) con leyenda lateral a color y porcentaje interno
             fig_pie.update_traces(textinfo="percent", textposition="inside")
             fig_pie.update_layout(
                 showlegend=True,
