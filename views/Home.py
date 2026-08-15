@@ -222,12 +222,16 @@ def render_home():
     promedio_general_final = 0.0
 
     if not df_filtrado_final.empty:
+        # Recuperar porcentajes reales de obsequios exportados por Obsequios.py
+        pct_obsequios_dict = st.session_state.get("pct_obsequios_tiendas", {})
+
         df_tiendas_count = (
             df_filtrado_final.groupby("CODIGO_STD")
             .agg(
                 ALMACEN_FALLBACK=("ALMACEN_STD", "first"),
                 REGIONAL=("REGIONAL_STD", "first"),
-                Total_Hallazgos=("Modulo", "count")
+                Total_Hallazgos=("Modulo", "count"),
+                Hallazgos_Otros=("Modulo", lambda s: (s != "Obsequios").sum())
             )
             .reset_index()
         )
@@ -242,8 +246,11 @@ def render_home():
             df_merged["PROMEDIO_VISITA_BI"] = 0.0
             df_merged["ALMACEN"] = df_merged["ALMACEN_FALLBACK"]
 
-        # DESCUENTO DE 0.1% POR HALLAZGO
-        df_merged["Descuento_Pct"] = df_merged["Total_Hallazgos"] * 0.1
+        # 🎯 CÁLCULO DINÁMICO: % Real Obsequios + 0.1% por resto de hallazgos
+        df_merged["Pct_Obsequios_Real"] = df_merged["CODIGO"].map(pct_obsequios_dict).fillna(0.0)
+        df_merged["Descuento_Otros"] = df_merged["Hallazgos_Otros"] * 0.1
+        df_merged["Descuento_Pct"] = df_merged["Pct_Obsequios_Real"] + df_merged["Descuento_Otros"]
+        
         df_merged["Nota_Ajustada"] = df_merged["PROMEDIO_VISITA_BI"] - df_merged["Descuento_Pct"]
 
         def clasificar_riesgo(nota):
@@ -298,9 +305,9 @@ def render_home():
         df_filtrada = df_merged[df_merged["Riesgo"] == st.session_state.categoria_activa].copy() if st.session_state.categoria_activa != "TODAS" else df_merged.copy()
         df_filtrada = df_filtrada.sort_values(by="Total_Hallazgos", ascending=False)
 
-        df_filtrada["Total Hallazgos Informes"] = df_filtrada.apply(lambda r: f"{r['Total_Hallazgos']} (-{r['Descuento_Pct']:.1f}%)", axis=1)
+        df_filtrada["Total Hallazgos Informes"] = df_filtrada.apply(lambda r: f"{r['Total_Hallazgos']} (-{r['Descuento_Pct']:.2f}%)", axis=1)
         df_filtrada["Porcentaje Visita"] = df_filtrada["PROMEDIO_VISITA_BI"].apply(lambda x: f"{x:.1f}%" if x > 0 else "0.0% (Sin Visita)")
-        df_filtrada["Porcentaje Final"] = df_filtrada["Nota_Ajustada"].apply(lambda x: f"{x:.1f}%")
+        df_filtrada["Porcentaje Final"] = df_filtrada["Nota_Ajustada"].apply(lambda x: f"{x:.2f}%")
 
         st.dataframe(
             df_filtrada[["CODIGO", "ALMACEN", "Total Hallazgos Informes", "Porcentaje Visita", "Porcentaje Final", "Riesgo"]],
@@ -325,7 +332,7 @@ def render_home():
         )
         
         df_prom_reg = df_prom_reg[df_prom_reg["REGIONAL"] != "SIN REGIONAL"]
-        df_prom_reg["Promedio Final Formateado"] = df_prom_reg["Promedio_Final"].apply(lambda x: f"{x:.1f}%")
+        df_prom_reg["Promedio Final Formateado"] = df_prom_reg["Promedio_Final"].apply(lambda x: f"{x:.2f}%")
         
         c_reg_t, c_reg_g = st.columns([1, 1])
         
