@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# Configuración de paleta corporativa sobria
+# Configuración de paleta corporativa
 COLOR_PRIMARY = "#1E3A8A"      # Azul marino profundo
 COLOR_SECONDARY = "#3B82F6"    # Azul corporativo
 COLOR_ACCENT = "#D97706"       # Ámbar/Naranja sobrio para alertas
@@ -34,7 +34,7 @@ def load_data_obsequios():
         return pd.DataFrame()
 
 def render_informe_01():
-    # 🎨 ESTILOS CSS PARA EVITAR TEXTOS CORTADOS Y AJUSTAR TAMAÑOS EN KPIS
+    # 🎨 Estilos CSS para Métricas y Encabezados
     st.markdown(
         """
         <style>
@@ -68,9 +68,7 @@ def render_informe_01():
         unsafe_allow_html=True
     )
 
-    # ---------------------------------------------------------
-    # ENCABEZADO Y TEXTOS DE OBJETIVO Y ACCIÓN
-    # ---------------------------------------------------------
+    # Encabezado
     st.title("🎁 Seguimiento Entrega de Obsequios Valor $1")
     
     st.markdown(
@@ -89,16 +87,13 @@ def render_informe_01():
         unsafe_allow_html=True
     )
     
-    # Carga de datos
     df = load_data_obsequios()
     
     if df.empty:
         st.warning("No se encontraron registros para mostrar.")
         return
 
-    # ---------------------------------------------------------
-    # FILTROS INTERACTIVOS
-    # ---------------------------------------------------------
+    # Filtros Interactivos
     st.subheader("🔍 Filtros de Auditoría")
     col_f1, col_f2, col_f3 = st.columns(3)
     
@@ -131,9 +126,7 @@ def render_informe_01():
 
     st.markdown("---")
 
-    # ---------------------------------------------------------
-    # TARJETAS DE KPIS GLOBALES
-    # ---------------------------------------------------------
+    # KPIs Globales
     total_incumplimientos = len(df_filtered)
     total_almacenes = df_filtered["CODALMACEN"].nunique() if "CODALMACEN" in df_filtered.columns else 0
     total_facturas = df_filtered["Factura"].nunique() if "Factura" in df_filtered.columns else 0
@@ -159,7 +152,6 @@ def render_informe_01():
         
         df_calc = df_filtered.copy()
         
-        # Asignar un período por defecto si no viene columna AÑO_MES
         if "AÑO_MES" not in df_calc.columns or df_calc["AÑO_MES"].isna().all():
             df_calc["AÑO_MES"] = "PERIODO_UNICO"
 
@@ -183,6 +175,29 @@ def render_informe_01():
             df_mensual["Novedades_Mes"] / df_mensual["Total_Nacional_Mes"]
         ) * 100
 
+        # =========================================================
+        # 🧪 BLOQUE DE VALIDACIÓN MES A MES (TIENDA S12 - TITAN)
+        # =========================================================
+        with st.expander("🔍 VALIDADOR DE CÁLCULO MES A MES (CLICK PARA AUDITAR S12 - TITAN)"):
+            st.write("### Desglose Mensual para S12 - CLASSIC CC TITAN L120:")
+            df_titan_test = df_mensual[df_mensual["CODALMACEN"].astype(str).str.contains("S12", na=False)].copy()
+            
+            if not df_titan_test.empty:
+                df_titan_test["% Mes Formateado"] = df_titan_test["Pct_Nacional_Mes"].apply(lambda x: f"{x:.2f}%")
+                
+                st.dataframe(
+                    df_titan_test[["AÑO_MES", "Novedades_Mes", "Total_Nacional_Mes", "% Mes Formateado"]],
+                    use_container_width=True,
+                    hide_index=True
+                )
+                
+                suma_casos = df_titan_test["Novedades_Mes"].sum()
+                suma_pct = df_titan_test["Pct_Nacional_Mes"].sum()
+                st.info(f"📌 **Suma Total Casos Titán:** {suma_casos} | **Suma Acumulada Porcentajes Mensuales:** {suma_pct:.2f}%")
+            else:
+                st.warning("No se encontraron registros de la tienda S12 con los filtros seleccionados.")
+        # =========================================================
+
         # 4. Consolidar por Tienda: Sumar novedades totales y la suma de porcentajes mensuales
         df_resumen = (
             df_mensual.groupby(["REGIONAL", "CODALMACEN", "ALMACEN"])
@@ -194,14 +209,14 @@ def render_informe_01():
             .sort_values(by="Novedades_Tienda", ascending=False)
         )
 
-        # 5. Formatear la columna de porcentaje para mostrarla limpia
+        # 5. Formatear la columna de porcentaje
         df_resumen_display = df_resumen.copy()
         df_resumen_display["% Participación Nacional"] = (
             df_resumen_display["Pct_Acumulado"].apply(lambda x: f"{x:.2f}%")
         )
         df_resumen_display.rename(columns={"Novedades_Tienda": "Novedades Tienda"}, inplace=True)
 
-        # 6. Añadir la Fila Final de TOTAL GENERAL al final de la tabla
+        # 6. Añadir Fila Final de TOTAL GENERAL
         total_novedades = df_resumen["Novedades_Tienda"].sum()
         fila_total = pd.DataFrame([{
             "REGIONAL": "TOTAL GENERAL",
