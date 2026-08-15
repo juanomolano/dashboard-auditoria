@@ -242,7 +242,8 @@ def render_home():
             df_merged["PROMEDIO_VISITA_BI"] = 0.0
             df_merged["ALMACEN"] = df_merged["ALMACEN_FALLBACK"]
 
-        df_merged["Descuento_Pct"] = df_merged["Total_Hallazgos"] * 0.5
+        # DESCUENTO DE 0.1% POR HALLAZGO
+        df_merged["Descuento_Pct"] = df_merged["Total_Hallazgos"] * 0.1
         df_merged["Nota_Ajustada"] = df_merged["PROMEDIO_VISITA_BI"] - df_merged["Descuento_Pct"]
 
         def clasificar_riesgo(nota):
@@ -387,7 +388,6 @@ def render_home():
         st.markdown("##### 📌 Volumen de Hallazgos por Módulo Auditado")
         df_vol = pd.DataFrame(list(volumenes.items()), columns=["Módulo", "Cantidad"]).sort_values(by="Cantidad", ascending=True)
         
-        # 🎨 GRÁFICO MULTICOLOR POR MÓDULO
         fig_bar_mod = px.bar(
             df_vol,
             x="Cantidad",
