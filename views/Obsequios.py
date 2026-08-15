@@ -28,26 +28,6 @@ def load_data_obsequios():
         st.error(f"⚠️ No se pudo conectar al archivo de Google Sheets: {e}")
         return pd.DataFrame()
 
-@st.cache_data(ttl=60)
-def load_metas_nacionales():
-    url_metas = "" 
-    
-    if url_metas:
-        try:
-            df_metas = pd.read_csv(url_metas)
-            df_metas.columns = df_metas.columns.str.strip().str.upper()
-            df_metas.rename(columns={"MES": "AÑO_MES", "TOTAL_NACIONAL": "Total_Nacional_Mes"}, inplace=True)
-            df_metas["AÑO_MES"] = df_metas["AÑO_MES"].astype(str)
-            return df_metas
-        except Exception:
-            pass
-            
-    data_metas = {
-        "AÑO_MES": ["2025-12", "2026-01", "2026-02", "2026-03", "2026-04", "2026-05", "2026-06", "2026-07"],
-        "Total_Nacional_Mes": [1000, 1000, 2000, 3000, 3000, 3000, 3000, 3000]
-    }
-    return pd.DataFrame(data_metas)
-
 def render_informe_01():
     st.markdown(
         """
@@ -80,7 +60,6 @@ def render_informe_01():
     )
     
     df = load_data_obsequios()
-    df_metas = load_metas_nacionales()
     
     if df.empty:
         st.warning("No se encontraron registros para mostrar.")
@@ -135,105 +114,6 @@ def render_informe_01():
     kpi4.metric("Regional Crítica", str(top_regional_name))
 
     st.markdown("<br>", unsafe_allow_html=True)
-
-    # ---------------------------------------------------------
-    # RESUMEN CONSOLIDADO CON CRUCE DE TOTALES NACIONALES
-    # ---------------------------------------------------------
-    if not df_filtered.empty:
-        st.markdown("##### 📊 Consolidado de Novedades de Obsequios por Almacén")
-        
-        df_calc = df_filtered.copy()
-        if "AÑO_MES" not in df_calc.columns or df_calc["AÑO_MES"].isna().all():
-            df_calc["AÑO_MES"] = "PERIODO_UNICO"
-
-        # 1. Agrupar novedades de la tienda por mes
-        df_mensual = (
-            df_calc.groupby(["AÑO_MES", "REGIONAL", "CODALMACEN", "ALMACEN"])
-            .size()
-            .reset_index(name="Novedades_Mes")
-        )
-
-        # 2. CRUCE CON LA TABLA DE TOTALES NACIONALES EXTERNA
-        df_mensual = pd.merge(df_mensual, df_metas, on="AÑO_MES", how="left")
-        df_mensual["Total_Nacional_Mes"] = df_mensual["Total_Nacional_Mes"].fillna(1)
-
-        # 3. Regla de tres por mes
-        df_mensual["Pct_Nacional_Mes"] = (
-            df_mensual["Novedades_Mes"] / df_mensual["Total_Nacional_Mes"]
-        ) * 100
-
-        # Bloque de validación interactivo para la tienda Titán (S12)
-        with st.expander("🔍 VALIDADOR DE CÁLCULO MES A MES (CLICK PARA AUDITAR S12 - TITAN)"):
-            st.write("### Desglose Mensual para S12 - CLASSIC CC TITAN L120 con Totales Oficiales:")
-            df_titan_test = df_mensual[df_mensual["CODALMACEN"].astype(str).str.contains("S12", na=False)].copy()
-            
-            if not df_titan_test.empty:
-                df_titan_test["% Mes Formateado"] = df_titan_test["Pct_Nacional_Mes"].apply(lambda x: f"{x:.4f}%")
-                
-                st.dataframe(
-                    df_titan_test[["AÑO_MES", "Novedades_Mes", "Total_Nacional_Mes", "% Mes Formateado"]],
-                    use_container_width=True,
-                    hide_index=True
-                )
-                
-                suma_casos = df_titan_test["Novedades_Mes"].sum()
-                suma_pct = df_titan_test["Pct_Nacional_Mes"].sum()
-                st.info(f"📌 **Suma Total Casos Titán:** {suma_casos} | **Suma Acumulada Porcentajes Mensuales:** {suma_pct:.2f}%")
-            else:
-                st.warning("No se encontraron registros de la tienda S12 con los filtros seleccionados.")
-
-        # 4. Consolidar por Tienda
-        df_resumen = (
-            df_mensual.groupby(["REGIONAL", "CODALMACEN", "ALMACEN"])
-            .agg(
-                Novedades_Tienda=("Novedades_Mes", "sum"),
-                Pct_Acumulado=("Pct_Nacional_Mes", "sum")
-            )
-            .reset_index()
-            .sort_values(by="Novedades_Tienda", ascending=False)
-        )
-
-        # ---------------------------------------------------------
-        # 🟢 CAMBIO AÑADIDO: Exportar porcentajes reales para el Home
-        # ---------------------------------------------------------
-        st.session_state["pct_obsequios_tiendas"] = df_resumen.set_index("CODALMACEN")["Pct_Acumulado"].to_dict()
-        # ---------------------------------------------------------
-
-        # 5. Formatear porcentajes para la vista principal
-        df_resumen_display = df_resumen.copy()
-        df_resumen_display["% Participación Nacional"] = (
-            df_resumen_display["Pct_Acumulado"].apply(lambda x: f"{x:.2f}%")
-        )
-        df_resumen_display.rename(columns={"Novedades_Tienda": "Novedades Tienda"}, inplace=True)
-
-        # 6. Fila final de Total General
-        total_novedades = df_resumen["Novedades_Tienda"].sum()
-        fila_total = pd.DataFrame([{
-            "REGIONAL": "TOTAL GENERAL",
-            "CODALMACEN": "-",
-            "ALMACEN": "NACIONAL",
-            "Novedades Tienda": total_novedades,
-            "% Participación Nacional": "-"
-        }])
-
-        df_final_resumen = pd.concat([
-            df_resumen_display[["REGIONAL", "CODALMACEN", "ALMACEN", "Novedades Tienda", "% Participación Nacional"]],
-            fila_total
-        ], ignore_index=True)
-
-        st.dataframe(
-            df_final_resumen,
-            column_config={
-                "REGIONAL": "REGIONAL",
-                "CODALMACEN": "CODALMACEN",
-                "ALMACEN": "ALMACEN",
-                "Novedades Tienda": st.column_config.NumberColumn("Novedades Tienda", format="%d"),
-                "% Participación Nacional": "% Participación Nacional"
-            },
-            use_container_width=True,
-            hide_index=True
-        )
-        st.markdown("<br>", unsafe_allow_html=True)
 
     # Visualizaciones y Gráficos
     col_chart1, col_chart2 = st.columns([1.1, 0.9])
