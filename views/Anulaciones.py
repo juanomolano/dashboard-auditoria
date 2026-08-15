@@ -12,7 +12,7 @@ COLOR_BG_CARD = "#F9FAFB"      # Fondo claro para tarjetas
 @st.cache_data(ttl=60)
 def load_data_anulaciones():
     """
-    Carga dinámicamente la hoja pública de Google Sheets en formato CSV.
+    Carga dinámicamente la hoja pública de Google Sheets en formato CSV (Base Principal Anulaciones).
     """
     url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQM4H5MpdtZYBem7pGKx3OszdwLBtFxcPE6c74dMqDRCj45RaZWDCMVW6N6M0VusA/pub?gid=1621055796&single=true&output=csv"
     
@@ -27,15 +27,45 @@ def load_data_anulaciones():
             df["AÑO_MES"] = df["FECHA_DT"].dt.to_period("M")
             
         if "CODALMACEN" in df.columns:
-            df["CODALMACEN"] = df["CODALMACEN"].astype(str)
+            df["CODALMACEN"] = df["CODALMACEN"].astype(str).str.strip().str.upper()
             
         return df
     except Exception as e:
         st.error(f"⚠️ No se pudo conectar al archivo de Google Sheets: {e}")
         return pd.DataFrame()
 
+@st.cache_data(ttl=60)
+def load_data_totales_nacionales_anulaciones():
+    """
+    Carga la nueva pestaña con los totales nacionales (MES, TOTAL_NACIONAL) para el cálculo de participación %.
+    """
+    url_totales = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQM4H5MpdtZYBem7pGKx3OszdwLBtFxcPE6c74dMqDRCj45RaZWDCMVW6N6M0VusA/pub?gid=1716693701&single=true&output=csv"
+    try:
+        df_totales = pd.read_csv(url_totales, encoding="utf-8")
+        df_totales.columns = df_totales.columns.str.strip().str.upper()
+        
+        # Formatear la columna TOTAL_NACIONAL a numérico
+        if "TOTAL_NACIONAL" in df_totales.columns:
+            df_totales["TOTAL_NACIONAL"] = (
+                df_totales["TOTAL_NACIONAL"]
+                .astype(str)
+                .str.replace(".", "", regex=False)
+                .str.replace(",", ".", regex=False)
+                .str.strip()
+            )
+            df_totales["TOTAL_NACIONAL"] = pd.to_numeric(df_totales["TOTAL_NACIONAL"], errors="coerce").fillna(0.0)
+            
+        if "MES" in df_totales.columns:
+            df_totales["MES"] = df_totales["MES"].astype(str).str.strip()
+            
+        return df_totales
+    except Exception as e:
+        st.error(f"⚠️ No se pudo cargar el total nacional de anulaciones: {e}")
+        return pd.DataFrame()
+
+
 def render_informe_02():
-    # 🎨 ESTILOS CSS PARA EVITAR TEXTOS CORTADOS Y AJUSTAR TAMAÑOS EN KPIS
+    # 🎨 ESTILOS CSS
     st.markdown(
         """
         <style>
@@ -90,8 +120,9 @@ def render_informe_02():
         unsafe_allow_html=True
     )
     
-    # Carga de datos
+    # Carga de datos principales y totales nacionales
     df = load_data_anulaciones()
+    df_totales_nacionales = load_data_totales_nacionales_anulaciones()
     
     if df.empty:
         st.warning("No se encontraron registros para mostrar.")
@@ -130,10 +161,35 @@ def render_informe_02():
     if selected_meses and "AÑO_MES" in df_filtered.columns:
         df_filtered = df_filtered[df_filtered["AÑO_MES"].astype(str).isin(selected_meses)]
 
+    # ---------------------------------------------------------
+    # 🧮 CÁLCULO DE PARTICIPACIÓN % Y GUARDADO EN SESSION STATE
+    # ---------------------------------------------------------
+    if not df.empty and "CODALMACEN" in df.columns:
+        # Calcular el denominador total nacional
+        if not df_totales_nacionales.empty and "TOTAL_NACIONAL" in df_totales_nacionales.columns:
+            if selected_meses and "MES" in df_totales_nacionales.columns:
+                total_nacional_base = df_totales_nacionales[df_totales_nacionales["MES"].isin(selected_meses)]["TOTAL_NACIONAL"].sum()
+            else:
+                total_nacional_base = df_totales_nacionales["TOTAL_NACIONAL"].sum()
+        else:
+            total_nacional_base = len(df) # Fallback en caso de que falle la carga
+
+        if total_nacional_base > 0:
+            # Conteo de registros por tienda
+            tienda_counts = df_filtered.groupby("CODALMACEN").size()
+            
+            # Calcular % exacto por tienda (Participación en el total nacional)
+            dict_pct_anulaciones = (tienda_counts / total_nacional_base * 100).to_dict()
+            st.session_state["pct_anulaciones_tiendas"] = dict_pct_anulaciones
+        else:
+            st.session_state["pct_anulaciones_tiendas"] = {}
+    else:
+        st.session_state["pct_anulaciones_tiendas"] = {}
+
     st.markdown("---")
 
     # ---------------------------------------------------------
-    # TARJETAS DE KPIS GLOBALES (SIN LA TARJETA DE MOTIVO)
+    # TARJETAS DE KPIS GLOBALES
     # ---------------------------------------------------------
     total_anulaciones = len(df_filtered)
     total_almacenes = df_filtered["CODALMACEN"].nunique() if "CODALMACEN" in df_filtered.columns else 0
