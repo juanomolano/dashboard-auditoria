@@ -24,7 +24,7 @@ def load_data_documentos():
         if "FECHAFACTURA" in df.columns:
             df["FECHA_DT"] = pd.to_datetime(df["FECHAFACTURA"], dayfirst=True, errors="coerce")
             df["FECHA_MOSTRAR"] = df["FECHA_DT"].dt.strftime("%d/%m/%Y")
-            df["AÑO_MES"] = df["FECHA_DT"].dt.to_period("M")
+            df["AÑO_MES"] = df["FECHA_DT"].dt.to_period("M").astype(str)
             
         if "CODALMACEN" in df.columns:
             df["CODALMACEN"] = df["CODALMACEN"].astype(str)
@@ -119,7 +119,7 @@ def render_informe_03():
         
     with col_f3:
         if "AÑO_MES" in df.columns and not df["AÑO_MES"].isna().all():
-            meses_disponibles = sorted(df["AÑO_MES"].dropna().unique().astype(str).tolist())
+            meses_disponibles = sorted(df["AÑO_MES"].dropna().unique().tolist())
             selected_meses = st.multiselect("Filtrar por Meses", options=meses_disponibles, placeholder="Todos los Meses")
         else:
             selected_meses = []
@@ -134,7 +134,7 @@ def render_informe_03():
         df_filtered = df_filtered[df_filtered["ALMACEN"].isin(selected_almacen)]
         
     if selected_meses and "AÑO_MES" in df_filtered.columns:
-        df_filtered = df_filtered[df_filtered["AÑO_MES"].astype(str).isin(selected_meses)]
+        df_filtered = df_filtered[df_filtered["AÑO_MES"].isin(selected_meses)]
 
     st.markdown("---")
 
@@ -298,6 +298,46 @@ def render_informe_03():
                 plot_bgcolor="rgba(0,0,0,0)"
             )
             st.plotly_chart(fig_area, use_container_width=True)
+
+    # ---------------------------------------------------------
+    # TABLA CONSOLIDADA CON VALIDACIÓN INTERACTIVA
+    # ---------------------------------------------------------
+    st.markdown("---")
+    st.subheader("📊 Consolidado de Novedades por Almacén")
+    
+    if not df_filtered.empty and "CODALMACEN" in df_filtered.columns and "AÑO_MES" in df_filtered.columns:
+        # Pivot table por Almacén y Mes
+        df_pivot = df_filtered.pivot_table(
+            index=["REGIONAL", "CODALMACEN", "ALMACEN"],
+            columns="AÑO_MES",
+            values="Factura",
+            aggfunc="count",
+            fill_value=0
+        ).reset_index()
+
+        meses_cols = [c for c in df_pivot.columns if c not in ["REGIONAL", "CODALMACEN", "ALMACEN"]]
+        df_pivot["Total General"] = df_pivot[meses_cols].sum(axis=1)
+        df_pivot = df_pivot.sort_values(by="Total General", ascending=False)
+
+        # Totales por columna
+        totales = {col: df_pivot[col].sum() for col in meses_cols}
+        totales["Total General"] = df_pivot["Total General"].sum()
+
+        st.dataframe(df_pivot, use_container_width=True, hide_index=True)
+
+        # Validador Interactivo Expandible
+        with st.expander("🔎 Ver Validador Interactivo de Totales"):
+            val_col1, val_col2 = st.columns(2)
+            with val_col1:
+                st.write("**Totales Consolidados por Mes:**")
+                for mes in meses_cols:
+                    st.write(f"- **{mes}:** {totales[mes]:,} registros")
+            with val_col2:
+                st.metric("Suma Total Auditada", f"{totales['Total General']:,}")
+                if totales['Total General'] == len(df_filtered):
+                    st.success("✅ La suma de la tabla coincide perfectamente con el total auditado.")
+                else:
+                    st.warning("⚠️ Hay una discrepancia en la suma de datos.")
 
     # ---------------------------------------------------------
     # TABLA DE DETALLE AUDITABLE
