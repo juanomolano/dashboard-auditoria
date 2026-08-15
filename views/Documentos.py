@@ -348,13 +348,20 @@ def render_informe_03():
     st.write("Facturas registradas con posible inconsistencia de tipo de documento:")
     
     df_tabla = df_filtered.copy()
+    
+    # 1. Ordenamos por la fecha real datetime para asegurar orden cronológico preciso
+    if "FECHA_DT" in df_tabla.columns:
+        df_tabla = df_tabla.sort_values(by="FECHA_DT", ascending=False)
+        
+    # 2. Reemplazamos la columna visual por el texto formateado (DD/MM/YYYY)
     if "FECHA_MOSTRAR" in df_tabla.columns:
         df_tabla["FECHAFACTURA"] = df_tabla["FECHA_MOSTRAR"]
         
+    # 3. Seleccionamos únicamente las columnas existentes para despliegue
     cols_display = [col for col in ["REGIONAL", "CODALMACEN", "ALMACEN", "FECHAFACTURA", "Factura", "DOCUMENTO", "IDENTIFICACION", "NOMVENDEDOR"] if col in df_tabla.columns]
     
     st.dataframe(
-        df_tabla[cols_display].sort_values(by="FECHAFACTURA", ascending=False),
+        df_tabla[cols_display],
         use_container_width=True,
         hide_index=True
     )
