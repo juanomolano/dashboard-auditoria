@@ -18,19 +18,31 @@ def load_data_documentos():
     
     try:
         df = pd.read_csv(url, encoding="utf-8")
+        
+        # Limpiar espacios en los nombres de las columnas
         df.columns = df.columns.str.strip()
         
-        # Conversión de fechas especificando día primero (DD/MM/YYYY)
+        # Eliminar filas completamente vacías que genera Google Sheets
+        df = df.dropna(how="all")
+        
+        # Conversión de fechas defensiva
         if "FECHAFACTURA" in df.columns:
+            # Convertir a texto primero para limpiar espacios invisibles
+            df["FECHAFACTURA"] = df["FECHAFACTURA"].astype(str).str.strip()
             df["FECHA_DT"] = pd.to_datetime(df["FECHAFACTURA"], dayfirst=True, errors="coerce")
-            df["FECHA_MOSTRAR"] = df["FECHA_DT"].dt.strftime("%d/%m/%Y")
-            df["AÑO_MES"] = df["FECHA_DT"].dt.to_period("M")
+            
+            # Asignar un texto por defecto si la fecha es nula/inválida
+            df["FECHA_MOSTRAR"] = df["FECHA_DT"].dt.strftime("%d/%m/%Y").fillna("Sin Fecha")
+            
+            # Crear AÑO_MES solo para registros con fecha válida
+            df["AÑO_MES"] = df["FECHA_DT"].dt.to_period("M").astype(str)
+            df["AÑO_MES"] = df["AÑO_MES"].replace("NaT", "Sin Fecha")
             
         if "CODALMACEN" in df.columns:
-            df["CODALMACEN"] = df["CODALMACEN"].astype(str)
+            df["CODALMACEN"] = df["CODALMACEN"].astype(str).str.replace(".0", "", regex=False)
             
         if "IDENTIFICACION" in df.columns:
-            df["IDENTIFICACION"] = df["IDENTIFICACION"].astype(str)
+            df["IDENTIFICACION"] = df["IDENTIFICACION"].astype(str).str.replace(".0", "", regex=False)
             
         return df
     except Exception as e:
@@ -349,15 +361,14 @@ def render_informe_03():
     
     df_tabla = df_filtered.copy()
     
-    # 1. Ordenamos por la fecha real datetime para asegurar orden cronológico preciso
+    # Ordenar por fecha real si existe
     if "FECHA_DT" in df_tabla.columns:
         df_tabla = df_tabla.sort_values(by="FECHA_DT", ascending=False)
         
-    # 2. Reemplazamos la columna visual por el texto formateado (DD/MM/YYYY)
+    # Asignar fecha para visualización
     if "FECHA_MOSTRAR" in df_tabla.columns:
         df_tabla["FECHAFACTURA"] = df_tabla["FECHA_MOSTRAR"]
         
-    # 3. Seleccionamos únicamente las columnas existentes para despliegue
     cols_display = [col for col in ["REGIONAL", "CODALMACEN", "ALMACEN", "FECHAFACTURA", "Factura", "DOCUMENTO", "IDENTIFICACION", "NOMVENDEDOR"] if col in df_tabla.columns]
     
     st.dataframe(
