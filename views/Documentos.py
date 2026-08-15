@@ -14,7 +14,7 @@ def load_data_documentos():
     """
     Carga dinámicamente la hoja pública de Google Sheets en formato CSV.
     """
-    url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQNB6Y3yTcF0o7QFhFoLMOULPZXcVl84MahhUPvHcWyxDjEgQbWKeGTqqi0Y5WymQ/pub?gid=646635232&single=true&output=csv"
+    url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQNB6Y3yTcF0o7QFhFoLMOULPZXcVl84MahhUPvHcWyxDjEgQbWKeGTqqi0Y5WymQ/pub?gid=1260662215&single=true&output=csv"
     
     try:
         df = pd.read_csv(url, encoding="utf-8")
@@ -24,7 +24,8 @@ def load_data_documentos():
         if "FECHAFACTURA" in df.columns:
             df["FECHA_DT"] = pd.to_datetime(df["FECHAFACTURA"], dayfirst=True, errors="coerce")
             df["FECHA_MOSTRAR"] = df["FECHA_DT"].dt.strftime("%d/%m/%Y")
-            df["AÑO_MES"] = df["FECHA_DT"].dt.to_period("M")
+            # Forzamos conversión a string para evitar errores con Pivot Table y Plotly
+            df["AÑO_MES"] = df["FECHA_DT"].dt.to_period("M").astype(str)
             
         if "CODALMACEN" in df.columns:
             df["CODALMACEN"] = df["CODALMACEN"].astype(str)
@@ -119,7 +120,7 @@ def render_informe_03():
         
     with col_f3:
         if "AÑO_MES" in df.columns and not df["AÑO_MES"].isna().all():
-            meses_disponibles = sorted(df["AÑO_MES"].dropna().unique().astype(str).tolist())
+            meses_disponibles = sorted([m for m in df["AÑO_MES"].dropna().unique().tolist() if m != "NaT"])
             selected_meses = st.multiselect("Filtrar por Meses", options=meses_disponibles, placeholder="Todos los Meses")
         else:
             selected_meses = []
@@ -134,7 +135,7 @@ def render_informe_03():
         df_filtered = df_filtered[df_filtered["ALMACEN"].isin(selected_almacen)]
         
     if selected_meses and "AÑO_MES" in df_filtered.columns:
-        df_filtered = df_filtered[df_filtered["AÑO_MES"].astype(str).isin(selected_meses)]
+        df_filtered = df_filtered[df_filtered["AÑO_MES"].isin(selected_meses)]
 
     st.markdown("---")
 
@@ -274,15 +275,15 @@ def render_informe_03():
         st.markdown("##### 📈 Comportamiento Mensual de Inconsistencias")
         if "AÑO_MES" in df_filtered.columns and not df_filtered.empty:
             df_trend = (
-                df_filtered.groupby("AÑO_MES")
+                df_filtered[df_filtered["AÑO_MES"] != "NaT"]
+                .groupby("AÑO_MES")
                 .size()
                 .reset_index(name="Cantidad")
             )
-            df_trend["AÑO_MES_STR"] = df_trend["AÑO_MES"].astype(str)
             
             fig_area = px.area(
                 df_trend,
-                x="AÑO_MES_STR",
+                x="AÑO_MES",
                 y="Cantidad",
                 markers=True,
                 text="Cantidad",
@@ -298,6 +299,51 @@ def render_informe_03():
                 plot_bgcolor="rgba(0,0,0,0)"
             )
             st.plotly_chart(fig_area, use_container_width=True)
+
+    # ---------------------------------------------------------
+    # TABLA CONSOLIDADA POR ALMACÉN Y MES + VALIDADOR INTERACTIVO
+    # ---------------------------------------------------------
+    st.markdown("---")
+    st.subheader("📊 Consolidado de Novedades por Almacén")
+    
+    if not df_filtered.empty and "CODALMACEN" in df_filtered.columns and "AÑO_MES" in df_filtered.columns:
+        # Filtrar registros válidos de fecha para la tabla dinámicamente
+        df_valid_dates = df_filtered[df_filtered["AÑO_MES"] != "NaT"]
+        
+        # Columna comodín para contar registros en el pivot
+        col_count = "Factura" if "Factura" in df_valid_dates.columns else df_valid_dates.columns[0]
+
+        df_pivot = df_valid_dates.pivot_table(
+            index=["REGIONAL", "CODALMACEN", "ALMACEN"],
+            columns="AÑO_MES",
+            values=col_count,
+            aggfunc="count",
+            fill_value=0
+        ).reset_index()
+
+        meses_cols = [c for c in df_pivot.columns if c not in ["REGIONAL", "CODALMACEN", "ALMACEN"]]
+        df_pivot["Total General"] = df_pivot[meses_cols].sum(axis=1)
+        df_pivot = df_pivot.sort_values(by="Total General", ascending=False)
+
+        # Muestra la tabla dinámica consolidada
+        st.dataframe(df_pivot, use_container_width=True, hide_index=True)
+
+        # Validador de Totales
+        totales_mes = {col: int(df_pivot[col].sum()) for col in meses_cols}
+        total_acumulado = int(df_pivot["Total General"].sum())
+
+        with st.expander("🔎 Ver Validador Interactivo de Totales"):
+            val_col1, val_col2 = st.columns(2)
+            with val_col1:
+                st.write("**Totales Consolidados por Mes:**")
+                for mes in meses_cols:
+                    st.write(f"- **{mes}:** {totales_mes[mes]:,} registros")
+            with val_col2:
+                st.metric("Suma Total Auditada", f"{total_acumulado:,}")
+                if total_acumulado == len(df_valid_dates):
+                    st.success("✅ La suma del consolidado coincide perfectamente con el total de registros auditados.")
+                else:
+                    st.warning("⚠️ Hay registros sin fecha válida que no entraron en el desglose mensual.")
 
     # ---------------------------------------------------------
     # TABLA DE DETALLE AUDITABLE
